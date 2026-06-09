@@ -147,8 +147,7 @@ $('registerBtn').onclick = async () => {
       residentCredentialRequested: true,
       note: ext?.prf?.enabled === true ? 'PRF enabled. Now do NOT register again. Use authenticate only.' : 'PRF did not enable on registration.'
     });
-  } catch (e) { $('registerOut').textContent = 'ERROR:
-' + (e.stack || e.message || e); }
+  } catch (e) { $('registerOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
 };
 
 async function authenticate(useSavedId) {
@@ -183,14 +182,12 @@ async function authenticate(useSavedId) {
 $('authSavedBtn').onclick = async () => {
   $('authSavedOut').textContent = 'Authenticating with saved ID...';
   try { $('authSavedOut').textContent = show(await authenticate(true)); }
-  catch (e) { $('authSavedOut').textContent = 'ERROR:
-' + (e.stack || e.message || e); }
+  catch (e) { $('authSavedOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
 };
 $('authDiscoverBtn').onclick = async () => {
   $('authDiscoverOut').textContent = 'Authenticating discoverable credential...';
   try { $('authDiscoverOut').textContent = show(await authenticate(false)); }
-  catch (e) { $('authDiscoverOut').textContent = 'ERROR:
-' + (e.stack || e.message || e); }
+  catch (e) { $('authDiscoverOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
 };
 
 $('genBtn').onclick = async () => {
@@ -204,8 +201,7 @@ $('genBtn').onclick = async () => {
     const digest = await hmacSha256(prfBytes, msg);
     const password = makePassword(digest, len);
     $('passOut').textContent = show({ siteId: site, length: len, password, repeatability: 'Same credential + same PRF salt + same Site ID + same master password = same password.' });
-  } catch (e) { $('passOut').textContent = 'ERROR:
-' + (e.stack || e.message || e); }
+  } catch (e) { $('passOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
 };
 
 $('clearBtn').onclick = () => {
