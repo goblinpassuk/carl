@@ -300,9 +300,9 @@
 <body>
     <div class="container">
         <h1>🔐 YubiPass</h1>
-        <p class="subtitle">YubiKey PRF Test • Toggle YubiKey On/Off</p>
+        <p class="subtitle">Truly Stateless • No Registration • No Setup</p>
         <div class="stateless-badge">
-            ✨ Toggle YubiKey on/off to compare outputs
+            ✨ Just enter a domain, touch your YubiKey, get your password
         </div>
 
         <div class="tabs">
@@ -367,17 +367,8 @@
                 </div>
             </div>
 
-
-            <div class="form-group">
-                <div class="checkbox-card" style="border-color:#e2e8f0;">
-                    <input type="checkbox" id="useYubiKey" checked>
-                    <label for="useYubiKey">Use YubiKey PRF</label>
-                </div>
-                <small style="color:#64748b; display:block; margin-top:6px;">Untick this to generate using the same password algorithm but without the YubiKey, so you can compare the output.</small>
-            </div>
-
-            <button class="btn btn-generate" id="generateBtn" onclick="generatePassword()">
-                🔨 Generate Password
+            <button class="btn btn-generate" onclick="generatePassword()">
+                🔨 Generate Password (Touch YubiKey)
             </button>
 
             <div id="resultBox" class="result-box">
@@ -446,7 +437,6 @@
                 digits: options.digits !== false,
                 symbols: options.symbols !== false,
                 counter: options.counter || 0,
-                useYubiKey: options.useYubiKey !== false,
             };
             
             const normalized = this.normalizeDomain(domain);
@@ -455,14 +445,9 @@
             const challengeInput = `yubipass:${normalized}:${username}:v6`;
             const challenge = await this.sha256(challengeInput);
             
-            // Get master key either from YubiKey PRF or from the same deterministic input.
-            // Everything after this point uses the exact same derivation/rendering algorithm.
-            let masterKey;
-            if (config.useYubiKey) {
-                masterKey = await this.getYubiKeyResponse(challenge);
-            } else {
-                masterKey = await this.sha256(`no-yubikey:${challengeInput}`);
-            }
+            // Get PRF response from YubiKey
+            // THIS IS THE KEY: No registration needed if we use discoverable credentials
+            const masterKey = await this.getYubiKeyResponse(challenge);
             
             // Derive password
             const saltInput = `${normalized}:${username}:${config.counter}:v6`;
@@ -671,13 +656,12 @@
             uppercase: document.getElementById('uppercase').checked,
             digits: document.getElementById('digits').checked,
             symbols: document.getElementById('symbols').checked,
-            useYubiKey: document.getElementById('useYubiKey').checked,
         };
         
         try {
-            if (options.useYubiKey) showModal('Touch your YubiKey...');
+            showModal('Touch your YubiKey...');
             const password = await PassEngine.generate(domain, username, options);
-            if (options.useYubiKey) closeModal();
+            closeModal();
             document.getElementById('passwordOutput').value = password;
             document.getElementById('resultBox').classList.add('show');
             setTimeout(() => copyPassword(), 100);
@@ -703,7 +687,6 @@
             uppercase: document.getElementById('uppercase').checked,
             digits: document.getElementById('digits').checked,
             symbols: document.getElementById('symbols').checked,
-            useYubiKey: document.getElementById('useYubiKey').checked,
             savedAt: new Date().toISOString()
         };
         let saved = JSON.parse(localStorage.getItem('yubipass_saved_v6') || '[]');
@@ -724,7 +707,7 @@
             <div class="saved-item">
                 <div>
                     <div class="service-name">${c.domain}</div>
-                    <div class="details">User: ${c.username || '—'} | Len: ${c.length} | Ctr: ${c.counter} | ${c.useYubiKey === false ? 'No YubiKey' : 'YubiKey'}</div>
+                    <div class="details">User: ${c.username || '—'} | Len: ${c.length} | Ctr: ${c.counter}</div>
                 </div>
                 <div class="actions">
                     <button class="btn btn-outline btn-small" onclick="loadConfig(${i})">Load</button>
@@ -746,8 +729,6 @@
         document.getElementById('uppercase').checked = c.uppercase;
         document.getElementById('digits').checked = c.digits;
         document.getElementById('symbols').checked = c.symbols;
-        document.getElementById('useYubiKey').checked = c.useYubiKey !== false;
-        updateYubiButtonText();
         switchTab('generate');
     }
     
@@ -774,18 +755,10 @@
         document.getElementById('yubiModal').classList.remove('show');
     }
     
-    function updateYubiButtonText() {
-        const useYubi = document.getElementById('useYubiKey')?.checked;
-        const btn = document.getElementById('generateBtn');
-        if (btn) btn.textContent = useYubi ? '🔨 Generate Password (Touch YubiKey)' : '🔨 Generate Password (No YubiKey)';
-    }
-
     window.addEventListener('DOMContentLoaded', () => {
         console.log('🔐 YubiPass v' + APP_VERSION);
         updateLength();
         switchTab('generate');
-        document.getElementById('useYubiKey').addEventListener('change', updateYubiButtonText);
-        updateYubiButtonText();
         document.getElementById('domain').focus();
     });
     </script>
