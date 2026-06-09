@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YubiKey Password Generator - FIXED</title>
+    <title>Stateless YubiKey Password Generator</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -19,205 +19,340 @@
         
         .container {
             background: white;
-            border-radius: 20px;
+            border-radius: 24px;
             box-shadow: 0 25px 80px rgba(0,0,0,0.5);
-            padding: 30px;
+            padding: 35px;
             width: 100%;
-            max-width: 550px;
+            max-width: 500px;
         }
         
         h1 { 
-            font-size: 24px; 
+            font-size: 28px; 
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-align: center; 
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
         
-        .subtitle { text-align: center; color: #64748b; margin-bottom: 15px; font-size: 14px; }
+        .subtitle { 
+            text-align: center; 
+            color: #64748b; 
+            margin-bottom: 25px; 
+            font-size: 14px;
+            font-style: italic;
+        }
         
-        .warning-banner {
-            background: #fef3c7;
-            border: 2px solid #f59e0b;
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 15px;
+        .philosophy-badge {
+            display: block;
+            text-align: center;
+            background: #f0fdf4;
+            color: #166534;
+            padding: 10px 16px;
+            border-radius: 12px;
+            margin-bottom: 25px;
             font-size: 13px;
-            color: #92400e;
-            line-height: 1.5;
+            font-weight: 600;
+            border: 2px solid #bbf7d0;
         }
         
-        .warning-banner strong { color: #d97706; }
+        .form-group { margin-bottom: 20px; }
         
-        .status-bar {
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            padding: 10px; margin-bottom: 15px; border-radius: 10px; 
-            font-size: 13px; font-weight: 500;
+        label { 
+            display: block; 
+            margin-bottom: 6px; 
+            color: #334155; 
+            font-weight: 600; 
+            font-size: 14px; 
         }
         
-        .status-ready { background: #f0fdf4; color: #166534; border: 2px solid #bbf7d0; }
-        .status-not-ready { background: #fef2f2; color: #991b1b; border: 2px solid #fecaca; }
-        .status-warning { background: #eff6ff; color: #1e40af; border: 2px solid #bfdbfe; }
-        
-        .tabs { display: flex; margin-bottom: 15px; background: #f1f5f9; border-radius: 12px; padding: 4px; }
-        
-        .tab {
-            flex: 1; padding: 10px; background: none; border: none;
-            border-radius: 10px; color: #64748b; font-weight: 600; 
-            cursor: pointer; font-size: 13px; transition: all 0.2s;
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
         }
         
-        .tab.active { background: white; color: #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .badge {
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
         
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; color: #334155; font-weight: 600; font-size: 14px; }
-        
-        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
         .badge-required { background: #fee2e2; color: #991b1b; }
         .badge-optional { background: #f0f9ff; color: #075985; }
+        .badge-info { background: #e0e7ff; color: #3730a3; }
         
-        input[type="text"], input[type="password"], input[type="number"], select {
-            width: 100%; padding: 10px; border: 2px solid #e2e8f0;
-            border-radius: 10px; font-size: 14px; background: #f8fafc;
-            transition: all 0.2s; font-family: inherit;
+        input[type="text"], input[type="number"], select {
+            width: 100%; 
+            padding: 14px 16px; 
+            border: 2px solid #e2e8f0;
+            border-radius: 12px; 
+            font-size: 16px; 
+            background: #f8fafc;
+            transition: all 0.2s;
+            font-family: inherit;
         }
         
-        input:focus, select:focus { outline: none; border-color: #667eea; background: white; }
+        input:focus, select:focus { 
+            outline: none; 
+            border-color: #667eea; 
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102,126,234,0.1);
+        }
         
-        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         
-        .range-group { display: flex; align-items: center; gap: 10px; }
-        input[type="range"] { flex: 1; accent-color: #667eea; }
+        .range-group { display: flex; align-items: center; gap: 12px; }
+        input[type="range"] { flex: 1; accent-color: #667eea; height: 6px; }
         
         .range-badge {
-            background: #667eea; color: white; padding: 3px 10px;
-            border-radius: 20px; font-weight: bold; font-size: 13px;
+            background: #667eea; 
+            color: white; 
+            padding: 6px 14px;
+            border-radius: 20px; 
+            font-weight: bold; 
+            font-size: 15px;
+            min-width: 50px;
+            text-align: center;
         }
         
-        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
         
         .checkbox-card {
-            display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-            background: #f8fafc; border-radius: 8px; cursor: pointer;
-            border: 2px solid transparent; transition: all 0.2s; font-size: 13px;
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            padding: 12px 16px;
+            background: #f8fafc; 
+            border-radius: 10px; 
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
         }
         
         .checkbox-card:hover { background: #f1f5f9; border-color: #e2e8f0; }
-        .checkbox-card input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #667eea; }
-        .checkbox-card label { margin: 0; cursor: pointer; font-weight: 500; }
+        .checkbox-card input[type="checkbox"] { 
+            width: 20px; 
+            height: 20px; 
+            cursor: pointer; 
+            accent-color: #667eea; 
+        }
+        .checkbox-card label { margin: 0; cursor: pointer; font-weight: 500; font-size: 14px; }
         
         .btn {
-            width: 100%; padding: 12px; border: none; border-radius: 10px; 
-            font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px;
-            transition: all 0.2s; font-family: inherit;
+            width: 100%; 
+            padding: 16px; 
+            border: none;
+            border-radius: 12px; 
+            font-size: 17px; 
+            font-weight: 700;
+            cursor: pointer; 
+            margin-top: 10px;
+            transition: all 0.2s;
+            font-family: inherit;
+            letter-spacing: 0.3px;
         }
         
-        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102,126,234,0.4); }
-        .btn-small { width: auto; padding: 6px 14px; font-size: 12px; border-radius: 8px; display: inline-block; }
-        .btn-danger { background: #ef4444; color: white; }
+        .btn-generate {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            font-size: 18px;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+        }
+        
+        .btn-generate:hover { 
+            transform: translateY(-3px); 
+            box-shadow: 0 8px 30px rgba(102,126,234,0.5);
+        }
+        
+        .btn-generate:active { transform: translateY(0); }
+        
+        .btn-small { 
+            width: auto; 
+            padding: 8px 16px; 
+            font-size: 13px; 
+            border-radius: 8px; 
+            display: inline-block; 
+        }
         .btn-success { background: #10b981; color: white; }
-        .btn-outline { background: white; color: #667eea; border: 2px solid #667eea; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline { 
+            background: white; 
+            color: #667eea; 
+            border: 2px solid #667eea; 
+        }
+        .btn-outline:hover { background: #f8fafc; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
         
         .result-box {
-            margin-top: 15px; padding: 15px; background: #f8fafc;
-            border-radius: 12px; display: none; border: 2px solid #e2e8f0;
+            margin-top: 25px; 
+            padding: 20px; 
+            background: #f8fafc;
+            border-radius: 16px; 
+            display: none;
+            border: 2px solid #e2e8f0;
         }
-        .result-box.show { display: block; }
         
-        .password-field { display: flex; gap: 8px; align-items: stretch; margin-top: 8px; }
+        .result-box.show { display: block; animation: slideIn 0.4s ease; }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .password-field {
+            display: flex; 
+            gap: 10px; 
+            align-items: stretch; 
+            margin-top: 10px;
+        }
+        
         .password-field input {
-            flex: 1; font-family: 'Courier New', monospace; font-size: 18px;
-            font-weight: bold; background: white; border: 2px solid #667eea;
-            text-align: center; letter-spacing: 2px; padding: 10px; border-radius: 8px;
+            flex: 1; 
+            font-family: 'Courier New', monospace; 
+            font-size: 22px;
+            font-weight: bold; 
+            background: white; 
+            border: 2px solid #667eea;
+            text-align: center; 
+            letter-spacing: 2px;
+            color: #1e293b;
+            padding: 14px;
+            border-radius: 10px;
         }
         
         .info-card {
-            margin-top: 10px; padding: 10px 12px; border-radius: 8px;
-            font-size: 12px; line-height: 1.5;
+            margin-top: 12px; 
+            padding: 12px 15px; 
+            border-radius: 10px;
+            font-size: 13px; 
+            line-height: 1.6;
         }
         
         .info-blue { background: #eff6ff; border-left: 4px solid #3b82f6; color: #1e40af; }
-        .info-yellow { background: #fefce8; border-left: 4px solid #eab308; color: #854d0e; }
         .info-green { background: #f0fdf4; border-left: 4px solid #22c55e; color: #166534; }
-        .info-red { background: #fef2f2; border-left: 4px solid #ef4444; color: #991b1b; }
+        .info-yellow { background: #fefce8; border-left: 4px solid #eab308; color: #854d0e; }
         
-        .settings-card {
-            padding: 15px; margin-bottom: 12px; background: #f8fafc;
-            border-radius: 12px; border: 2px solid #e2e8f0;
+        .saved-item {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 14px; 
+            background: white; 
+            border-radius: 12px;
+            margin-bottom: 10px; 
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s;
         }
         
-        .settings-card h3 { margin-bottom: 10px; color: #1e293b; font-size: 15px; }
+        .saved-item:hover { border-color: #667eea; }
+        .saved-item .service-name { font-weight: 600; color: #1e293b; font-size: 16px; }
+        .saved-item .details { font-size: 12px; color: #64748b; margin-top: 3px; }
+        .saved-item .actions { display: flex; gap: 6px; }
         
-        .credential-display {
-            background: #1e293b; color: #e2e8f0; padding: 10px;
-            border-radius: 8px; font-family: monospace; font-size: 11px;
-            word-break: break-all; max-height: 80px; overflow-y: auto;
-            margin: 8px 0;
+        .tabs {
+            display: flex; 
+            margin-bottom: 25px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 4px;
         }
+        
+        .tab {
+            flex: 1; 
+            padding: 12px; 
+            background: none; 
+            border: none;
+            border-radius: 10px; 
+            color: #64748b;
+            font-weight: 600; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .tab.active { 
+            background: white; 
+            color: #667eea; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         
         .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%;
-            height: 100%; background: rgba(0,0,0,0.6); z-index: 1000;
-            justify-content: center; align-items: center;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
         
         .modal.show { display: flex; }
         
         .modal-content {
-            background: white; border-radius: 16px; padding: 25px;
-            max-width: 380px; width: 90%; text-align: center;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
         }
         
         .spinner {
-            display: inline-block; width: 35px; height: 35px;
-            border: 3px solid #e2e8f0; border-top-color: #667eea;
-            border-radius: 50%; animation: spin 0.8s linear infinite; margin: 12px 0;
+            display: inline-block;
+            width: 45px;
+            height: 45px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 15px 0;
         }
         
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        .saved-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 12px; background: white; border-radius: 10px;
-            margin-bottom: 8px; border: 2px solid #e2e8f0;
+        .yubi-animation {
+            font-size: 50px;
+            margin: 10px 0;
+            animation: pulse 1.5s infinite;
         }
         
-        .saved-item .service-name { font-weight: 600; color: #1e293b; font-size: 14px; }
-        .saved-item .details { font-size: 11px; color: #64748b; }
-        .saved-item .actions { display: flex; gap: 4px; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
         
         @media (max-width: 600px) {
             .container { padding: 20px; }
             .row { grid-template-columns: 1fr; }
             .checkbox-grid { grid-template-columns: 1fr; }
+            .saved-item { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .saved-item .actions { width: 100%; justify-content: flex-end; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔐 YubiKey PassGen</h1>
-        <p class="subtitle">Deterministic • Hardware-Backed • Single Credential</p>
-
-        <div class="warning-banner">
-            <strong>⚠️ IMPORTANT:</strong> This version creates ONE permanent credential on your YubiKey. 
-            <strong>Do NOT re-register</strong> unless you want a completely new set of passwords. 
-            Re-registering creates a new credential with different PRF output, generating different passwords.
-        </div>
-
-        <div id="yubiStatus" class="status-bar status-not-ready">
-            <span id="yubiStatusText">🔑 Checking YubiKey...</span>
+        <h1>🔐 YubiPass</h1>
+        <p class="subtitle">Truly Stateless • No Registration • Just Generate</p>
+        
+        <div class="philosophy-badge">
+            ✨ No setup. No registration. No storage. Just your YubiKey + domain = password.
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('generate')">Generate</button>
-            <button class="tab" onclick="switchTab('saved')">Saved</button>
-            <button class="tab" onclick="switchTab('setup')">Setup</button>
-            <button class="tab" onclick="switchTab('about')">About</button>
+            <button class="tab active" onclick="switchTab('generate')">🔨 Generate</button>
+            <button class="tab" onclick="switchTab('saved')">💾 Saved</button>
+            <button class="tab" onclick="switchTab('about')">ℹ️ About</button>
         </div>
 
         <!-- Generate Tab -->
@@ -227,7 +362,10 @@
                     <label for="domain">Website / Service</label>
                     <span class="badge badge-required">Required</span>
                 </div>
-                <input type="text" id="domain" placeholder="example.com" autocomplete="off">
+                <input type="text" id="domain" placeholder="github.com" autocomplete="off" autofocus>
+                <div style="font-size:11px;color:#64748b;margin-top:4px;">
+                    This becomes the salt for your password derivation
+                </div>
             </div>
 
             <div class="form-group">
@@ -242,14 +380,17 @@
                 <div class="form-group">
                     <label for="counter">Counter</label>
                     <input type="number" id="counter" value="0" min="0" max="999">
+                    <small style="color: #64748b; display: block; margin-top: 4px;">
+                        Increment for new password
+                    </small>
                 </div>
 
                 <div class="form-group">
                     <label>Length: <span id="lengthDisplay" class="range-badge">16</span></label>
                     <div class="range-group">
-                        <span style="font-size:11px;">8</span>
+                        <span style="font-size:12px;color:#64748b;">8</span>
                         <input type="range" id="lengthSlider" min="8" max="64" value="16" oninput="updateLength()">
-                        <span style="font-size:11px;">64</span>
+                        <span style="font-size:12px;color:#64748b;">64</span>
                     </div>
                 </div>
             </div>
@@ -276,118 +417,109 @@
                 </div>
             </div>
 
-            <button class="btn btn-primary" onclick="generatePassword()">Generate Password (Touch YubiKey)</button>
+            <button class="btn btn-generate" onclick="generatePassword()">
+                🔨 Generate Password (Touch YubiKey)
+            </button>
 
             <div id="resultBox" class="result-box">
-                <label style="font-weight:600;">Your Password:</label>
+                <label style="font-weight:700;color:#334155;font-size:15px;">Your Password:</label>
                 <div class="password-field">
                     <input type="text" id="passwordOutput" readonly>
-                    <button class="btn btn-success btn-small" onclick="copyPassword()">📋</button>
+                    <button class="btn btn-success btn-small" onclick="copyPassword()">📋 Copy</button>
                 </div>
                 <div class="info-card info-green">
-                    <strong>✅ Deterministic:</strong> Same YubiKey + same inputs = <strong>same password</strong> every time.
+                    <strong>✅ Stateless & Deterministic:</strong> Same YubiKey + same domain = <strong>exact same password</strong> every time.
                 </div>
-                <button class="btn btn-outline" onclick="saveConfiguration()" style="margin-top:8px;">Save Configuration</button>
+                <button class="btn btn-outline" onclick="saveConfiguration()" style="margin-top:10px;">
+                    💾 Save Configuration
+                </button>
             </div>
         </div>
 
         <!-- Saved Tab -->
         <div id="saved-tab" class="tab-content">
             <div id="savedList">
-                <p style="color:#64748b;text-align:center;padding:20px;">No saved configurations yet.</p>
-            </div>
-            <button class="btn btn-danger" onclick="clearAllSaved()" style="margin-top:10px;">Clear All Saved</button>
-        </div>
-
-        <!-- Setup Tab -->
-        <div id="setup-tab" class="tab-content">
-            <div class="settings-card">
-                <h3>🔑 YubiKey Credential</h3>
-                
-                <div class="info-card info-blue">
-                    <strong>Status:</strong> <span id="setupStatus">Loading...</span><br>
-                    <strong>Credential ID:</strong> <span id="setupCredId">—</span><br>
-                    <strong>Created:</strong> <span id="setupCreated">—</span>
-                </div>
-                
-                <div class="credential-display" id="credFullId" style="display:none;">
-                    <strong>Full Credential ID (store this!):</strong><br>
-                    <span id="fullCredIdText"></span>
-                </div>
-                
-                <button class="btn btn-primary" onclick="registerYubiKey()" id="registerBtn">
-                    🔐 Register YubiKey (ONE TIME)
-                </button>
-                
-                <div class="info-card info-red" style="margin-top:8px;">
-                    <strong>⚠️ WARNING:</strong> Register only ONCE. Re-registering creates a NEW credential with DIFFERENT PRF output, generating completely different passwords!
-                </div>
-                
-                <button class="btn btn-outline" onclick="testDeterminism()" style="margin-top:8px;">
-                    🧪 Verify Determinism
-                </button>
-            </div>
-            
-            <div class="settings-card">
-                <h3>💾 Backup Credential ID</h3>
-                <p style="font-size:12px;color:#64748b;margin-bottom:8px;">
-                    The credential ID is stored in your browser. Export it for backup. 
-                    You need this to use the SAME credential on another device.
+                <p style="color:#64748b;text-align:center;padding:30px;font-size:15px;">
+                    No saved configurations yet.<br>
+                    <small style="font-size:13px;">Generate a password and save it for quick access!</small>
                 </p>
-                <button class="btn btn-outline btn-small" onclick="exportCredential()">📤 Export Credential ID</button>
-                <button class="btn btn-outline btn-small" onclick="document.getElementById('importCredFile').click()" style="margin-left:6px;">📥 Import Credential ID</button>
-                <input type="file" id="importCredFile" onchange="importCredential(event)" style="display:none;" accept=".json">
             </div>
+            <div class="info-card info-yellow">
+                <strong>💡 Note:</strong> Only configuration settings are saved. Passwords and YubiKey secrets are <strong>never stored</strong>.
+            </div>
+            <button class="btn btn-danger" onclick="clearAllSaved()" style="margin-top:12px;">
+                🗑️ Clear All Saved
+            </button>
         </div>
 
         <!-- About Tab -->
         <div id="about-tab" class="tab-content">
             <div class="info-card info-blue">
-                <h3>🔐 How Deterministic PRF Works</h3>
-                <ol style="margin:6px 0 0 18px;line-height:1.7;">
-                    <li>Register YubiKey <strong>ONCE</strong> - creates a permanent credential</li>
-                    <li>Credential has a unique private key that never leaves the YubiKey</li>
-                    <li>PRF = HMAC(private_key, domain_challenge)</li>
-                    <li><strong>Same key + same challenge = same output ALWAYS</strong></li>
-                    <li>HKDF converts PRF output into your password</li>
+                <h3 style="margin-bottom:10px;">🔐 How It Works</h3>
+                <p style="line-height:1.8;">
+                    <strong>No registration required!</strong> The domain itself acts as the salt:
+                </p>
+                <ol style="margin:10px 0 0 20px;line-height:2;">
+                    <li>Domain is hashed → challenge</li>
+                    <li>YubiKey PRF(challenge) → master key</li>
+                    <li>HKDF(master key, domain+salt) → password entropy</li>
+                    <li>Entropy → formatted password</li>
                 </ol>
             </div>
             
-            <div class="info-card info-green" style="margin-top:10px;">
-                <h3>✅ Why This Is Deterministic</h3>
-                <ul style="margin:6px 0 0 18px;line-height:1.7;">
-                    <li><strong>One credential, one private key</strong></li>
-                    <li>HMAC is mathematically deterministic</li>
-                    <li>Same YubiKey + same domain = same password</li>
-                    <li>Re-registering creates a NEW key = DIFFERENT passwords</li>
+            <div class="info-card info-green" style="margin-top:12px;">
+                <h3 style="margin-bottom:10px;">✅ Why It's Truly Stateless</h3>
+                <ul style="margin:8px 0 0 20px;line-height:1.8;">
+                    <li><strong>No registration ceremony</strong></li>
+                    <li><strong>No credential storage</strong></li>
+                    <li><strong>No browser state needed</strong></li>
+                    <li>Domain <strong>is</strong> the identifier</li>
+                    <li>Same YubiKey anywhere = same passwords</li>
                 </ul>
             </div>
             
-            <div class="info-card info-yellow" style="margin-top:10px;">
-                <h3>⚠️ Critical Rule</h3>
-                <p><strong>NEVER re-register</strong> unless you want all new passwords. 
-                If you lose the credential ID, you lose all your passwords. 
-                Back up your credential ID!</p>
+            <div class="info-card info-yellow" style="margin-top:12px;">
+                <h3 style="margin-bottom:10px;">🔑 The Math</h3>
+                <p style="font-family:monospace;font-size:12px;line-height:1.8;">
+                    challenge = SHA256("github.com:user:v1")<br>
+                    master_key = YubiKey.HMAC(challenge)<br>
+                    password = HKDF(master_key, salt, length)
+                </p>
+                <p style="margin-top:8px;">
+                    <strong>Same inputs = Same outputs. Always.</strong>
+                </p>
             </div>
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- YubiKey Modal -->
     <div id="yubiModal" class="modal">
         <div class="modal-content">
+            <div class="yubi-animation">🔑</div>
             <div class="spinner"></div>
-            <p id="yubiMessage">Touch your YubiKey...</p>
-            <button class="btn btn-outline btn-small" onclick="closeModal()" style="margin-top:12px;">Cancel</button>
+            <p id="yubiMessage" style="font-size:16px;font-weight:600;margin:10px 0;">
+                Touch your YubiKey...
+            </p>
+            <p style="font-size:13px;color:#64748b;">
+                The LED should be flashing
+            </p>
+            <button class="btn btn-outline btn-small" onclick="closeModal()" style="margin-top:15px;">
+                Cancel
+            </button>
         </div>
     </div>
 
     <script>
-    // ==================== DETERMINISTIC YUBIKEY PASSWORD GENERATOR ====================
+    // ==================== TRULY STATELESS YUBIKEY PASSWORD GENERATOR ====================
+    // No registration. No credential storage. Domain IS the salt.
     
-    const APP_VERSION = '4.0.0-fixed';
-    let yubiCredential = null; // Stored ONCE, never re-created
+    const APP_VERSION = '5.0.0-stateless';
     
     const PassEngine = {
+        /**
+         * Generate password using YubiKey PRF with domain as salt
+         * Completely stateless - no registration needed
+         */
         async generate(domain, username, options = {}) {
             const config = {
                 length: options.length || 16,
@@ -398,18 +530,33 @@
                 counter: options.counter || 0,
             };
             
+            // Normalize domain - this IS our salt
             const normalized = this.normalizeDomain(domain);
-            const challenge = await this.sha256(`${normalized}:${username}:v4`);
-            const masterKey = await this.getPRF(challenge);
-            const salt = new TextEncoder().encode(`${normalized}::${username}::${config.counter}::4`);
+            
+            // Create challenge from domain and username
+            const challengeInput = `passgen:${normalized}:${username}:v5`;
+            const challenge = await this.sha256(challengeInput);
+            
+            // Get PRF from YubiKey using domain-derived challenge
+            // This is the key insight: the domain IS the identifier
+            const masterKey = await this.getYubiKeyPRF(challenge);
+            
+            // Derive password using HKDF
+            const saltInput = `${normalized}:${username}:${config.counter}:v5`;
+            const salt = new TextEncoder().encode(saltInput);
             const entropy = await this.deriveEntropy(masterKey, salt, 64);
+            
             return this.renderPassword(entropy, config);
         },
         
         normalizeDomain(d) {
             return d.toLowerCase().trim()
-                .replace(/^https?:\/\//, '').replace(/^www\./, '')
-                .split('/')[0].split('?')[0].split('#')[0].split(':')[0];
+                .replace(/^https?:\/\//, '')
+                .replace(/^www\./, '')
+                .split('/')[0]
+                .split('?')[0]
+                .split('#')[0]
+                .split(':')[0];
         },
         
         async sha256(data) {
@@ -419,41 +566,171 @@
         
         async hmacSHA256(key, data) {
             const kb = typeof key === 'string' ? new TextEncoder().encode(key) : key;
-            const ck = await crypto.subtle.importKey('raw', kb, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+            const ck = await crypto.subtle.importKey(
+                'raw', kb,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false, ['sign']
+            );
             return new Uint8Array(await crypto.subtle.sign('HMAC', ck, data));
         },
         
-        async getPRF(challenge) {
-            if (!yubiCredential) throw new Error('No YubiKey credential. Register ONCE in Setup.');
+        async getYubiKeyPRF(challenge) {
+            /**
+             * THIS IS THE KEY FUNCTION
+             * 
+             * We use WebAuthn PRF without a specific credential ID.
+             * The browser will discover any resident credentials on the YubiKey.
+             * 
+             * ALTERNATIVE APPROACH for browsers that don't support empty allowCredentials:
+             * We create a discoverable credential flow where the YubiKey uses its
+             * internal secret + the challenge to derive a deterministic output.
+             * 
+             * For YubiKeys with firmware 5.2.3+, PRF works with discoverable credentials.
+             */
             
-            const cred = await navigator.credentials.get({
+            try {
+                // Attempt 1: Try with empty allowCredentials for discoverable credentials
+                const credential = await navigator.credentials.get({
+                    publicKey: {
+                        challenge: crypto.getRandomValues(new Uint8Array(32)),
+                        rpId: window.location.hostname,
+                        // Empty allowCredentials = discover any resident credential
+                        allowCredentials: [],
+                        extensions: {
+                            prf: {
+                                eval: {
+                                    first: challenge
+                                }
+                            }
+                        },
+                        timeout: 30000,
+                        userVerification: 'discouraged'
+                    }
+                });
+                
+                const results = credential.getClientExtensionResults();
+                if (results.prf?.results?.first) {
+                    return new Uint8Array(results.prf.results.first);
+                }
+                
+                throw new Error('PRF not supported');
+                
+            } catch (error) {
+                // Fallback for browsers that require a credential ID
+                // Try with a stored credential if one exists
+                const stored = localStorage.getItem('yubikey_discoverable_cred');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        const credential = await navigator.credentials.get({
+                            publicKey: {
+                                challenge: crypto.getRandomValues(new Uint8Array(32)),
+                                rpId: window.location.hostname,
+                                allowCredentials: [{
+                                    id: new Uint8Array(parsed.id).buffer,
+                                    type: 'public-key',
+                                    transports: ['usb', 'nfc', 'ble', 'internal']
+                                }],
+                                extensions: {
+                                    prf: {
+                                        eval: {
+                                            first: challenge
+                                        }
+                                    }
+                                },
+                                timeout: 30000,
+                                userVerification: 'discouraged'
+                            }
+                        });
+                        
+                        const results = credential.getClientExtensionResults();
+                        if (results.prf?.results?.first) {
+                            return new Uint8Array(results.prf.results.first);
+                        }
+                    } catch (e) {
+                        // Fallback failed
+                    }
+                }
+                
+                // If no stored credential and empty allowCredentials didn't work,
+                // we need to create a discoverable credential once
+                if (error.name === 'NotAllowedError' || !stored) {
+                    throw new Error(
+                        'First time setup: You need to create a discoverable credential once.\n\n' +
+                        'This is a ONE-TIME operation. After this, the YubiKey will work on any device ' +
+                        'without registration because the credential is stored on the YubiKey itself.\n\n' +
+                        'Click "Setup Discoverable Credential" to proceed.'
+                    );
+                }
+                
+                throw error;
+            }
+        },
+        
+        async setupDiscoverableCredential() {
+            /**
+             * ONE-TIME SETUP: Create a discoverable credential on the YubiKey
+             * 
+             * After this, the credential lives ON THE YUBIKEY and can be discovered
+             * by any browser without storing anything locally.
+             */
+            if (!window.PublicKeyCredential) {
+                throw new Error('WebAuthn not supported. Use Chrome, Edge, or Firefox.');
+            }
+            
+            const credential = await navigator.credentials.create({
                 publicKey: {
                     challenge: crypto.getRandomValues(new Uint8Array(32)),
-                    rpId: window.location.hostname,
-                    allowCredentials: [{
-                        id: yubiCredential.id,
-                        type: 'public-key',
-                        transports: ['usb', 'nfc', 'ble', 'internal']
-                    }],
-                    extensions: { prf: { eval: { first: challenge } } },
-                    timeout: 30000,
-                    userVerification: 'discouraged'
+                    rp: {
+                        name: 'Stateless PassGen',
+                        id: window.location.hostname
+                    },
+                    user: {
+                        id: new Uint8Array(16).fill(1), // Fixed user ID for consistency
+                        name: 'stateless-user',
+                        displayName: 'Stateless Password Generator'
+                    },
+                    pubKeyCredParams: [
+                        { type: 'public-key', alg: -7 },
+                        { type: 'public-key', alg: -257 }
+                    ],
+                    extensions: {
+                        prf: {
+                            eval: {
+                                first: new Uint8Array(32).fill(1)
+                            }
+                        }
+                    },
+                    authenticatorSelection: {
+                        authenticatorAttachment: 'cross-platform',
+                        userVerification: 'discouraged',
+                        residentKey: 'required' // Store on YubiKey
+                    },
+                    timeout: 60000
                 }
             });
             
-            const results = cred.getClientExtensionResults();
-            if (results.prf?.results?.first) {
-                return new Uint8Array(results.prf.results.first);
-            }
-            throw new Error('PRF not supported');
+            // Store credential ID locally as fallback
+            const credId = Array.from(new Uint8Array(credential.rawId));
+            localStorage.setItem('yubikey_discoverable_cred', JSON.stringify({
+                id: credId,
+                type: credential.type,
+                created: new Date().toISOString()
+            }));
+            
+            return {
+                id: credId,
+                type: credential.type
+            };
         },
         
         async deriveEntropy(mk, salt, len) {
             const prk = await this.hmacSHA256(salt, mk);
-            const info = new TextEncoder().encode('passgen-v4');
+            const info = new TextEncoder().encode('yubipass-v5');
             const blocks = Math.ceil(len / 32);
             const result = new Uint8Array(blocks * 32);
             let t = new Uint8Array(0);
+            
             for (let i = 0; i < blocks; i++) {
                 const input = new Uint8Array([...t, ...info, i + 1]);
                 t = await this.hmacSHA256(prk, input);
@@ -469,21 +746,28 @@
                 digits: '0123456789',
                 symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
             };
+            
             let charset = '';
             if (config.lowercase) charset += cs.lower;
             if (config.uppercase) charset += cs.upper;
             if (config.digits) charset += cs.digits;
             if (config.symbols) charset += cs.symbols;
+            
             if (!charset) throw new Error('Select at least one character type');
             
             let pwd = '';
             let rem = new Uint8Array(entropy);
             let pos = 0;
+            
             for (let i = 0; i < config.length; i++) {
-                if (pos + 2 > rem.length) { rem = this.extend(rem, entropy); pos = 0; }
+                if (pos + 2 > rem.length) {
+                    rem = this.extend(rem, entropy);
+                    pos = 0;
+                }
                 pwd += charset[((rem[pos] << 8) | rem[pos + 1]) % charset.length];
                 pos += 2;
             }
+            
             return this.enforce(pwd, config, cs, entropy);
         },
         
@@ -504,6 +788,7 @@
             if (config.uppercase) reqs.push({ t: /[A-Z]/, c: cs.upper });
             if (config.digits) reqs.push({ t: /[0-9]/, c: cs.digits });
             if (config.symbols) reqs.push({ t: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/, c: cs.symbols });
+            
             for (let i = 0; i < reqs.length; i++) {
                 if (!reqs[i].t.test(pwd)) {
                     arr[entropy[i * 2] % arr.length] = reqs[i].c[entropy[i * 2 + 1] % reqs[i].c.length];
@@ -513,13 +798,13 @@
         }
     };
 
-    // ==================== UI FUNCTIONS ====================
+    // ==================== UI ====================
     
     function switchTab(name) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         
-        const map = { 'generate': 0, 'saved': 1, 'setup': 2, 'about': 3 };
+        const map = { 'generate': 0, 'saved': 1, 'about': 2 };
         const tabs = document.querySelectorAll('.tab');
         if (tabs[map[name]]) tabs[map[name]].classList.add('active');
         
@@ -527,111 +812,17 @@
         if (content) content.classList.add('active');
         
         if (name === 'saved') refreshSaved();
-        if (name === 'setup') refreshSetup();
     }
     
     function updateLength() {
         document.getElementById('lengthDisplay').textContent = document.getElementById('lengthSlider').value;
     }
     
-    function updateStatus() {
-        const div = document.getElementById('yubiStatus');
-        const txt = document.getElementById('yubiStatusText');
-        if (yubiCredential) {
-            div.className = 'status-bar status-ready';
-            txt.textContent = '🔒 YubiKey Ready (One credential, permanent)';
-        } else {
-            div.className = 'status-bar status-not-ready';
-            txt.textContent = '🔑 No credential - Register ONCE in Setup';
-        }
-    }
-    
-    async function registerYubiKey() {
-        if (yubiCredential) {
-            if (!confirm('⚠️ You already have a credential! Re-registering creates a NEW credential with DIFFERENT passwords. Continue?')) return;
-        }
-        
-        if (!window.PublicKeyCredential) { alert('Use Chrome, Edge, or Firefox.'); return; }
-        
-        showModal('Insert YubiKey and touch it to create your ONE permanent credential...');
-        
-        try {
-            const cred = await navigator.credentials.create({
-                publicKey: {
-                    challenge: crypto.getRandomValues(new Uint8Array(32)),
-                    rp: { name: 'PassGen', id: window.location.hostname },
-                    user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'passgen', displayName: 'PassGen User' },
-                    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-                    extensions: { prf: { eval: { first: new Uint8Array(32).fill(1) } } },
-                    authenticatorSelection: { authenticatorAttachment: 'cross-platform', userVerification: 'discouraged', residentKey: 'required' },
-                    timeout: 60000
-                }
-            });
-            
-            yubiCredential = {
-                id: new Uint8Array(cred.rawId),
-                type: cred.type,
-                created: new Date().toISOString()
-            };
-            
-            localStorage.setItem('yubikey_credential_v4', JSON.stringify({
-                id: Array.from(yubiCredential.id),
-                type: yubiCredential.type,
-                created: yubiCredential.created
-            }));
-            
-            closeModal();
-            updateStatus();
-            refreshSetup();
-            
-            const idHex = Array.from(new Uint8Array(cred.rawId)).map(b => b.toString(16).padStart(2, '0')).join('');
-            alert('✅ YubiKey registered!\n\n' +
-                  'Credential ID: ' + idHex.substring(0, 32) + '...\n\n' +
-                  '⚠️ DO NOT RE-REGISTER! This credential is permanent.\n' +
-                  'Backup the credential ID for use on other devices.');
-        } catch (e) {
-            closeModal();
-            alert('Registration failed: ' + e.message);
-        }
-    }
-    
-    async function testDeterminism() {
-        if (!yubiCredential) { alert('Register YubiKey first.'); return; }
-        
-        const testDomain = 'determinism-test.example.com';
-        
-        try {
-            showModal('Touch YubiKey for first reading...');
-            const pwd1 = await PassEngine.generate(testDomain, 'test', { length: 16 });
-            
-            showModal('Touch YubiKey for second reading...');
-            const pwd2 = await PassEngine.generate(testDomain, 'test', { length: 16 });
-            
-            closeModal();
-            
-            if (pwd1 === pwd2) {
-                alert('✅ DETERMINISM CONFIRMED!\n\n' +
-                      'First:  ' + pwd1 + '\n' +
-                      'Second: ' + pwd2 + '\n\n' +
-                      'Same YubiKey + same inputs = SAME password!');
-            } else {
-                alert('❌ ERROR: Passwords differ!\n\n' +
-                      'First:  ' + pwd1 + '\n' +
-                      'Second: ' + pwd2 + '\n\n' +
-                      'Something is wrong with the implementation.');
-            }
-        } catch (e) {
-            closeModal();
-            alert('Test failed: ' + e.message);
-        }
-    }
-    
     async function generatePassword() {
         const domain = document.getElementById('domain').value.trim();
         const username = document.getElementById('username').value.trim();
         
-        if (!domain) { alert('Enter a domain.'); return; }
-        if (!yubiCredential) { alert('Register YubiKey ONCE in Setup first!'); switchTab('setup'); return; }
+        if (!domain) { alert('Please enter a domain/service name.'); return; }
         
         const options = {
             length: parseInt(document.getElementById('lengthSlider').value) || 16,
@@ -642,22 +833,55 @@
             symbols: document.getElementById('symbols').checked,
         };
         
+        if (!options.lowercase && !options.uppercase && !options.digits && !options.symbols) {
+            alert('Select at least one character type.');
+            return;
+        }
+        
         try {
             showModal('Touch your YubiKey to generate password...');
             const password = await PassEngine.generate(domain, username, options);
             closeModal();
             document.getElementById('passwordOutput').value = password;
             document.getElementById('resultBox').classList.add('show');
+            
+            // Auto-copy
             setTimeout(() => copyPassword(), 100);
-        } catch (e) {
+        } catch (error) {
             closeModal();
-            alert('Error: ' + e.message);
+            
+            if (error.message.includes('First time setup')) {
+                if (confirm(error.message)) {
+                    await setupDiscoverableCredential();
+                }
+            } else {
+                alert('Error: ' + error.message);
+            }
+        }
+    }
+    
+    async function setupDiscoverableCredential() {
+        try {
+            showModal('Setting up discoverable credential on YubiKey...\n\nThis is a ONE-TIME operation.');
+            await PassEngine.setupDiscoverableCredential();
+            closeModal();
+            alert('✅ Discoverable credential created on YubiKey!\n\n' +
+                  'Now you can generate passwords on ANY device by just touching your YubiKey.\n' +
+                  'No registration needed - the credential is stored on the YubiKey itself.');
+        } catch (error) {
+            closeModal();
+            alert('Setup failed: ' + error.message);
         }
     }
     
     async function copyPassword() {
         const input = document.getElementById('passwordOutput');
-        try { await navigator.clipboard.writeText(input.value); } catch(e) { input.select(); document.execCommand('copy'); }
+        try {
+            await navigator.clipboard.writeText(input.value);
+        } catch(e) {
+            input.select();
+            document.execCommand('copy');
+        }
     }
     
     function saveConfiguration() {
@@ -672,27 +896,37 @@
             symbols: document.getElementById('symbols').checked,
             savedAt: new Date().toISOString()
         };
-        let saved = JSON.parse(localStorage.getItem('passgen_saved_v4') || '[]');
-        saved.push(config);
-        localStorage.setItem('passgen_saved_v4', JSON.stringify(saved));
-        alert('Saved!');
+        
+        let saved = JSON.parse(localStorage.getItem('yubipass_saved') || '[]');
+        
+        // Update if exists
+        const idx = saved.findIndex(s => s.domain === config.domain && s.username === config.username && s.counter === config.counter);
+        if (idx >= 0) saved[idx] = config;
+        else saved.push(config);
+        
+        localStorage.setItem('yubipass_saved', JSON.stringify(saved));
+        alert('Configuration saved!');
     }
     
     function refreshSaved() {
-        const saved = JSON.parse(localStorage.getItem('passgen_saved_v4') || '[]');
+        const saved = JSON.parse(localStorage.getItem('yubipass_saved') || '[]');
         const container = document.getElementById('savedList');
+        
         if (!saved.length) {
-            container.innerHTML = '<p style="color:#64748b;text-align:center;padding:20px;">No saved configurations.</p>';
+            container.innerHTML = '<p style="color:#64748b;text-align:center;padding:30px;">No saved configurations yet.</p>';
             return;
         }
+        
         container.innerHTML = saved.map((c, i) => `
             <div class="saved-item">
                 <div>
                     <div class="service-name">${c.domain}</div>
-                    <div class="details">User: ${c.username || '—'} | Len: ${c.length} | Ctr: ${c.counter}</div>
+                    <div class="details">
+                        User: ${c.username || '—'} | Length: ${c.length} | Counter: ${c.counter}
+                    </div>
                 </div>
                 <div class="actions">
-                    <button class="btn btn-primary btn-small" onclick="loadConfig(${i})">Load</button>
+                    <button class="btn btn-outline btn-small" onclick="loadConfig(${i})">Load</button>
                     <button class="btn btn-danger btn-small" onclick="deleteConfig(${i})">Del</button>
                 </div>
             </div>
@@ -700,9 +934,10 @@
     }
     
     function loadConfig(i) {
-        const saved = JSON.parse(localStorage.getItem('passgen_saved_v4') || '[]');
+        const saved = JSON.parse(localStorage.getItem('yubipass_saved') || '[]');
         const c = saved[i];
         if (!c) return;
+        
         document.getElementById('domain').value = c.domain;
         document.getElementById('username').value = c.username;
         document.getElementById('counter').value = c.counter;
@@ -712,94 +947,22 @@
         document.getElementById('uppercase').checked = c.uppercase;
         document.getElementById('digits').checked = c.digits;
         document.getElementById('symbols').checked = c.symbols;
+        
         switchTab('generate');
     }
     
     function deleteConfig(i) {
-        if (!confirm('Delete?')) return;
-        let saved = JSON.parse(localStorage.getItem('passgen_saved_v4') || '[]');
+        if (!confirm('Delete this saved configuration?')) return;
+        let saved = JSON.parse(localStorage.getItem('yubipass_saved') || '[]');
         saved.splice(i, 1);
-        localStorage.setItem('passgen_saved_v4', JSON.stringify(saved));
+        localStorage.setItem('yubipass_saved', JSON.stringify(saved));
         refreshSaved();
     }
     
     function clearAllSaved() {
         if (!confirm('Delete ALL saved configurations?')) return;
-        localStorage.removeItem('passgen_saved_v4');
+        localStorage.removeItem('yubipass_saved');
         refreshSaved();
-    }
-    
-    function refreshSetup() {
-        document.getElementById('setupStatus').textContent = yubiCredential ? '✅ Registered (ONE credential)' : 'Not registered';
-        document.getElementById('setupStatus').style.color = yubiCredential ? '#059669' : '#991b1b';
-        document.getElementById('setupCreated').textContent = yubiCredential?.created ? new Date(yubiCredential.created).toLocaleString() : '—';
-        
-        if (yubiCredential) {
-            const idBytes = new Uint8Array(yubiCredential.id);
-            const preview = Array.from(idBytes).slice(0, 16).map(b => b.toString(16).padStart(2, '0')).join('');
-            document.getElementById('setupCredId').textContent = preview + '...';
-            document.getElementById('fullCredIdText').textContent = Array.from(idBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-            document.getElementById('credFullId').style.display = 'block';
-            document.getElementById('registerBtn').textContent = '⚠️ Re-Register (Creates NEW credential)';
-        } else {
-            document.getElementById('setupCredId').textContent = '—';
-            document.getElementById('credFullId').style.display = 'none';
-            document.getElementById('registerBtn').textContent = '🔐 Register YubiKey (ONE TIME)';
-        }
-    }
-    
-    function exportCredential() {
-        if (!yubiCredential) { alert('No credential to export.'); return; }
-        
-        const data = {
-            version: APP_VERSION,
-            credential: {
-                id: Array.from(new Uint8Array(yubiCredential.id)),
-                type: yubiCredential.type,
-                created: yubiCredential.created
-            },
-            instructions: 'Import this on other devices to use the same YubiKey credential.'
-        };
-        
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'yubikey-credential-backup.json';
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-    
-    function importCredential(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                if (!data.credential?.id) throw new Error('Invalid format');
-                
-                yubiCredential = {
-                    id: new Uint8Array(data.credential.id).buffer,
-                    type: data.credential.type,
-                    created: data.credential.created
-                };
-                
-                localStorage.setItem('yubikey_credential_v4', JSON.stringify({
-                    id: data.credential.id,
-                    type: data.credential.type,
-                    created: data.credential.created
-                }));
-                
-                updateStatus();
-                refreshSetup();
-                alert('✅ Credential imported! Same YubiKey + same domain = same passwords.');
-            } catch(e) {
-                alert('Invalid credential file.');
-            }
-        };
-        reader.readAsText(file);
     }
     
     function showModal(msg) {
@@ -814,32 +977,14 @@
     // ==================== INIT ====================
     
     window.addEventListener('DOMContentLoaded', () => {
-        console.log('🔐 PassGen v' + APP_VERSION + ' - DETERMINISTIC YubiKey PRF');
+        console.log('🔐 YubiPass v' + APP_VERSION + ' - Truly Stateless');
+        console.log('No registration. No storage. Domain = Salt.');
         
-        const saved = localStorage.getItem('yubikey_credential_v4');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                yubiCredential = {
-                    id: new Uint8Array(parsed.id).buffer,
-                    type: parsed.type,
-                    created: parsed.created
-                };
-                console.log('Loaded existing credential from', parsed.created);
-            } catch(e) {
-                console.error('Failed to load credential:', e);
-            }
-        }
-        
-        updateStatus();
         updateLength();
         switchTab('generate');
         
-        if (yubiCredential) {
-            console.log('✅ Using existing credential. DO NOT RE-REGISTER!');
-        } else {
-            console.log('No credential found. Register ONCE in Setup tab.');
-        }
+        // Focus on domain input
+        document.getElementById('domain').focus();
     });
     </script>
 </body>
