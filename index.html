@@ -3,61 +3,50 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GoblinPass PRF Test v2</title>
+  <title>GoblinPass PRF Test v3</title>
   <style>
     :root { color-scheme: dark; }
-    body { font-family: system-ui, sans-serif; margin: 0; background:#111; color:#eee; }
-    main { max-width: 780px; margin: 0 auto; padding: 18px; }
-    h1 { font-size: 1.5rem; }
+    body { font-family: system-ui, sans-serif; margin:0; background:#111; color:#eee; }
+    main { max-width:780px; margin:0 auto; padding:18px; }
     .card { background:#1c1c1c; border:1px solid #333; border-radius:14px; padding:14px; margin:14px 0; }
-    label { display:block; margin-top:12px; font-weight:600; }
     input, button { width:100%; box-sizing:border-box; font:inherit; border-radius:10px; border:1px solid #444; padding:10px; margin-top:6px; }
-    input { background:#0b0b0b; color:#eee; }
+    input { background:#080808; color:#eee; }
     button { background:#6d38ff; color:white; font-weight:700; border:0; margin-top:12px; }
     button.secondary { background:#333; }
-    pre { white-space: pre-wrap; word-break: break-word; background:#050505; padding:12px; border-radius:10px; border:1px solid #333; }
-    .ok { color:#76ff9a; font-weight:700; }
-    .bad { color:#ff7676; font-weight:700; }
-    .warn { color:#ffd166; font-weight:700; }
+    pre { white-space:pre-wrap; word-break:break-word; background:#050505; padding:12px; border-radius:10px; border:1px solid #333; }
+    .ok { color:#76ff9a; font-weight:700; } .bad { color:#ff7676; font-weight:700; } .warn { color:#ffd166; font-weight:700; }
     small { color:#aaa; }
   </style>
 </head>
 <body>
 <main>
-  <h1>GoblinPass WebAuthn PRF Test v2</h1>
-  <p>This version forces a <b>resident/discoverable credential</b>, saves the credential ID, and gives you two login tests: one using the saved ID and one asking the browser/key to discover the passkey.</p>
+  <h1>GoblinPass WebAuthn PRF Test v3</h1>
+  <p><b>v3 avoids discoverable passkeys.</b> It saves the YubiKey credential ID locally and authenticates with that saved ID. This should avoid the “no passkeys available” screen.</p>
 
   <div class="card">
     <h2>1. Status</h2>
     <p id="status"></p>
-    <small>Use HTTPS. GitHub Pages is fine. Keep the same domain when retesting.</small>
+    <small>Must be HTTPS. Use the same GitHub Pages domain for register and authenticate.</small>
   </div>
 
   <div class="card">
-    <h2>2. Register YubiKey PRF</h2>
+    <h2>2. Register once</h2>
     <label>Test username</label>
     <input id="username" value="goblin-test-user" autocomplete="username" />
-    <button id="registerBtn">Register NEW discoverable PRF credential</button>
+    <button id="registerBtn">Register YubiKey PRF Credential</button>
     <pre id="registerOut">Not registered yet.</pre>
   </div>
 
   <div class="card">
-    <h2>3A. Authenticate using saved credential ID</h2>
+    <h2>3. Authenticate using saved ID</h2>
     <label>PRF salt / label</label>
     <input id="salt" value="GoblinPass PRF v1" />
-    <button id="authSavedBtn">Authenticate with saved ID + Get PRF</button>
-    <pre id="authSavedOut">No PRF result yet.</pre>
+    <button id="authBtn">Authenticate YubiKey and Get PRF</button>
+    <pre id="authOut">No PRF result yet.</pre>
   </div>
 
   <div class="card">
-    <h2>3B. Authenticate as discoverable passkey</h2>
-    <p><small>Use this if 3A says no passkeys available. This test does not send allowCredentials; the browser/key should find the resident passkey itself.</small></p>
-    <button id="authDiscoverBtn">Authenticate discoverable passkey + Get PRF</button>
-    <pre id="authDiscoverOut">No PRF result yet.</pre>
-  </div>
-
-  <div class="card">
-    <h2>4. Generate Stateless Password</h2>
+    <h2>4. Generate stateless password</h2>
     <label>Site ID</label>
     <input id="siteId" value="1" />
     <label>Master password / phrase</label>
@@ -69,32 +58,79 @@
   </div>
 
   <div class="card">
-    <h2>Saved Credential</h2>
+    <h2>Saved local credential ID</h2>
     <button class="secondary" id="clearBtn">Clear saved local credential ID</button>
     <pre id="savedOut"></pre>
   </div>
 </main>
 <script>
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 let lastPrfHex = null;
 
-function bytesToHex(buf) { return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join(''); }
-function hexToBytes(hex) { const out = new Uint8Array(hex.length / 2); for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.substr(i*2, 2), 16); return out; }
+function bytesToHex(buf) {
+  return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('');
+}
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return out;
+}
 function utf8(s) { return new TextEncoder().encode(s); }
-function b64url(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-function unb64url(s) { s = s.replace(/-/g,'+').replace(/_/g,'/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
-function randomBytes(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
-async function sha256Bytes(...parts) { let len = parts.reduce((n,p)=>n+p.length,0); let all = new Uint8Array(len), off=0; for (const p of parts) { all.set(p, off); off += p.length; } return new Uint8Array(await crypto.subtle.digest('SHA-256', all)); }
-async function hmacSha256(keyBytes, msgBytes) { const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC', hash:'SHA-256'}, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', key, msgBytes)); }
-function makePassword(bytes, len) { const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_+='; let out = ''; for (let i = 0; out.length < len; i++) out += chars[bytes[i % bytes.length] % chars.length]; return out; }
-function saveCredential(idBytes, username) { localStorage.setItem('goblin_prf_credential_id', b64url(idBytes)); localStorage.setItem('goblin_prf_username', username || ''); updateSaved(); }
-function getCredentialId() { const s = localStorage.getItem('goblin_prf_credential_id'); return s ? unb64url(s) : null; }
-function updateSaved() { const s = localStorage.getItem('goblin_prf_credential_id'); const u = localStorage.getItem('goblin_prf_username') || ''; $('savedOut').textContent = s ? `Saved username: ${u}
-Saved credential ID:
-${s}
-
-Important: registering again creates a new credential and a different PRF output. For repeatability, register once, then use authenticate only.` : 'No saved local credential ID.'; }
+function b64url(buf) {
+  let bin = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+function unb64url(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function randomBytes(n) {
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return a;
+}
+async function sha256Bytes(...parts) {
+  const len = parts.reduce((n, p) => n + p.length, 0);
+  const all = new Uint8Array(len);
+  let off = 0;
+  for (const p of parts) { all.set(p, off); off += p.length; }
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', all));
+}
+async function hmacSha256(keyBytes, msgBytes) {
+  const key = await crypto.subtle.importKey('raw', keyBytes, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, msgBytes));
+}
+function makePassword(bytes, len) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_+=';
+  let out = '';
+  for (let i = 0; out.length < len; i++) out += chars[bytes[i % bytes.length] % chars.length];
+  return out;
+}
 function show(obj) { return JSON.stringify(obj, null, 2); }
+function saveCredential(rawId, username) {
+  localStorage.setItem('goblin_prf_credential_id', b64url(rawId));
+  localStorage.setItem('goblin_prf_username', username || '');
+  updateSaved();
+}
+function getCredentialId() {
+  const s = localStorage.getItem('goblin_prf_credential_id');
+  if (!s) return null;
+  return unb64url(s);
+}
+function updateSaved() {
+  const s = localStorage.getItem('goblin_prf_credential_id');
+  const u = localStorage.getItem('goblin_prf_username') || '';
+  $('savedOut').textContent = s ? `Saved username: ${u}\nSaved credential ID:\n${s}\n\nDo not register again unless you want a new PRF output.` : 'No saved credential ID.';
+}
+async function getSaltHash() {
+  return await sha256Bytes(utf8($('salt').value || 'GoblinPass PRF v1'));
+}
 
 $('status').innerHTML = `
 WebAuthn: ${window.PublicKeyCredential ? '<span class="ok">available</span>' : '<span class="bad">not available</span>'}<br>
@@ -104,10 +140,8 @@ RP ID used: <code>${location.hostname}</code>
 `;
 updateSaved();
 
-async function getSaltHash() { return await sha256Bytes(utf8($('salt').value || 'GoblinPass PRF v1')); }
-
-$('registerBtn').onclick = async () => {
-  $('registerOut').textContent = 'Registering...';
+$('registerBtn').addEventListener('click', async () => {
+  $('registerOut').textContent = 'Registering... touch the YubiKey when asked.';
   try {
     const username = $('username').value || 'goblin-test-user';
     const userId = await sha256Bytes(utf8('GoblinPass user|' + location.hostname + '|' + username));
@@ -124,9 +158,9 @@ $('registerBtn').onclick = async () => {
         timeout: 90000,
         authenticatorSelection: {
           authenticatorAttachment: 'cross-platform',
-          residentKey: 'required',
-          requireResidentKey: true,
-          userVerification: 'preferred'
+          residentKey: 'discouraged',
+          requireResidentKey: false,
+          userVerification: 'discouraged'
         },
         attestation: 'none',
         extensions: {
@@ -140,57 +174,52 @@ $('registerBtn').onclick = async () => {
     $('registerOut').textContent = show({
       success: true,
       id: cred.id,
-      type: cred.type,
-      authenticatorAttachment: cred.authenticatorAttachment,
       clientExtensionResults: ext,
-      prfEnabled: ext?.prf?.enabled === true,
-      residentCredentialRequested: true,
-      note: ext?.prf?.enabled === true ? 'PRF enabled. Now do NOT register again. Use authenticate only.' : 'PRF did not enable on registration.'
+      prfEnabled: ext && ext.prf && ext.prf.enabled === true,
+      savedCredentialId: b64url(cred.rawId),
+      note: 'Registered and saved locally. Now use Authenticate; do not register again.'
     });
-  } catch (e) { $('registerOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
-};
-
-async function authenticate(useSavedId) {
-  const saltHash = await getSaltHash();
-  const publicKey = {
-    challenge: randomBytes(32),
-    rpId: location.hostname,
-    timeout: 90000,
-    userVerification: 'preferred',
-    extensions: { prf: { eval: { first: saltHash } } }
-  };
-  if (useSavedId) {
-    const id = getCredentialId();
-    if (!id) throw new Error('No local credential ID saved. Register once first.');
-    publicKey.allowCredentials = [{ type: 'public-key', id, transports: ['usb','nfc','ble','hybrid','internal'] }];
+  } catch (e) {
+    $('registerOut').textContent = 'ERROR:\n' + (e.stack || e.message || String(e));
   }
-  const assertion = await navigator.credentials.get({ publicKey });
-  const ext = assertion.getClientExtensionResults ? assertion.getClientExtensionResults() : {};
-  const first = ext?.prf?.results?.first;
-  lastPrfHex = first ? bytesToHex(first) : null;
-  if (assertion.rawId) saveCredential(assertion.rawId, localStorage.getItem('goblin_prf_username') || $('username').value || '');
-  return {
-    success: true,
-    returnedCredentialId: assertion.id,
-    clientExtensionResults: ext,
-    prfResultHex: lastPrfHex,
-    usableForGoblinPass: !!lastPrfHex,
-    note: lastPrfHex ? 'PRF output returned. Now generate a password. Retest by refreshing and authenticating again without registering.' : 'No PRF output returned.'
-  };
-}
+});
 
-$('authSavedBtn').onclick = async () => {
-  $('authSavedOut').textContent = 'Authenticating with saved ID...';
-  try { $('authSavedOut').textContent = show(await authenticate(true)); }
-  catch (e) { $('authSavedOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
-};
-$('authDiscoverBtn').onclick = async () => {
-  $('authDiscoverOut').textContent = 'Authenticating discoverable credential...';
-  try { $('authDiscoverOut').textContent = show(await authenticate(false)); }
-  catch (e) { $('authDiscoverOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
-};
+$('authBtn').addEventListener('click', async () => {
+  $('authOut').textContent = 'Authenticating... touch the same YubiKey when asked.';
+  try {
+    const id = getCredentialId();
+    if (!id) throw new Error('No saved credential ID. Register once first.');
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: randomBytes(32),
+        rpId: location.hostname,
+        timeout: 90000,
+        userVerification: 'discouraged',
+        allowCredentials: [
+          { type: 'public-key', id: id, transports: ['usb', 'nfc', 'ble'] }
+        ],
+        extensions: {
+          prf: { eval: { first: await getSaltHash() } }
+        }
+      }
+    });
+    const ext = assertion.getClientExtensionResults ? assertion.getClientExtensionResults() : {};
+    const first = ext && ext.prf && ext.prf.results && ext.prf.results.first;
+    lastPrfHex = first ? bytesToHex(first) : null;
+    $('authOut').textContent = show({
+      success: true,
+      returnedCredentialId: assertion.id,
+      clientExtensionResults: ext,
+      prfResultHex: lastPrfHex,
+      usableForGoblinPass: !!lastPrfHex,
+      note: lastPrfHex ? 'PRF output returned. Now generate a password. Refresh and authenticate again to check it repeats.' : 'Authentication worked, but no PRF output returned.'
+    });
+  } catch (e) {
+    $('authOut').textContent = 'ERROR:\n' + (e.stack || e.message || String(e));
+  }
+});
 
-$('genBtn').onclick = async () => {
+$('genBtn').addEventListener('click', async () => {
   try {
     if (!lastPrfHex) throw new Error('Authenticate first to get a PRF output.');
     const site = $('siteId').value;
@@ -199,20 +228,21 @@ $('genBtn').onclick = async () => {
     const prfBytes = hexToBytes(lastPrfHex);
     const msg = utf8('GoblinPass password v1|' + location.hostname + '|' + site + '|' + master + '|' + len);
     const digest = await hmacSha256(prfBytes, msg);
-    const password = makePassword(digest, len);
-    $('passOut').textContent = show({ siteId: site, length: len, password, repeatability: 'Same credential + same PRF salt + same Site ID + same master password = same password.' });
-  } catch (e) { $('passOut').textContent = 'ERROR:\n' + (e.stack || e.message || e); }
-};
+    $('passOut').textContent = show({ siteId: site, length: len, password: makePassword(digest, len), repeatability: 'Same saved credential + same salt + same Site ID + same master password = same password.' });
+  } catch (e) {
+    $('passOut').textContent = 'ERROR:\n' + (e.stack || e.message || String(e));
+  }
+});
 
-$('clearBtn').onclick = () => {
+$('clearBtn').addEventListener('click', () => {
   localStorage.removeItem('goblin_prf_credential_id');
   localStorage.removeItem('goblin_prf_username');
-  lastPrfHex = null; updateSaved();
-  $('registerOut').textContent = 'Local saved ID cleared. This does not delete the passkey from the YubiKey/browser.';
-  $('authSavedOut').textContent = 'No PRF result yet.';
-  $('authDiscoverOut').textContent = 'No PRF result yet.';
+  lastPrfHex = null;
+  updateSaved();
+  $('registerOut').textContent = 'Local credential ID cleared. This does not delete anything from the YubiKey.';
+  $('authOut').textContent = 'No PRF result yet.';
   $('passOut').textContent = 'Authenticate first, then generate.';
-};
+});
 </script>
 </body>
 </html>
