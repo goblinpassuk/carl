@@ -1,0 +1,16 @@
+{
+  "engineVersion": "2.0.0",
+  "siteName": "MyPass",
+  "tagline": "Private passwords, your way.",
+  "primaryColour": "#77f05a",
+  "secondaryColour": "#101914",
+  "theme": "dark",
+  "logoPath": "assets/logo.png",
+  "hasCustomLogo": false,
+  "aboutText": "We built this password helper to make unique passwords easier to use while keeping the password engine local and transparent.",
+  "coreFiles": [
+    "core/password-generator.js",
+    "core/security.js"
+  ],
+  "securityNote": "Branding settings must not modify the GoblinPass password generation engine."
+}
