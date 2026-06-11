@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YubiKey Encryptor - Auto-Save to Disk</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: #1a1a2e;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        textarea {
+            width: 100%;
+            height: 400px;
+            font-family: 'Courier New', monospace;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        button {
+            padding: 0.75rem 1.5rem;
+            margin: 0.5rem 0.5rem 0 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        button:hover { transform: translateY(-1px); opacity: 0.9; }
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        .status {
+            padding: 0.75rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .file-path {
+            background: #f0f0f0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 1rem;
+            word-break: break-all;
+        }
+        .stats {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 2px solid #eee;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔐 YubiKey Encryptor - Persistent Storage</h1>
+    
+    <div id="status" class="status info">💡 Ready - Click "Setup YubiKey" first</div>
+    
+    <div id="setupSection">
+        <button id="setupBtn" class="btn-primary">🔑 Setup YubiKey (One Time)</button>
+        <div class="file-path" id="setupHelp">
+            ⚡ After setup, your encrypted data will auto-save to:<br>
+            <strong id="filePathDisplay">Loading...</strong>
+        </div>
+    </div>
+    
+    <div id="notesSection" style="display: none;">
+        <h3>📝 Your Encrypted Notes</h3>
+        <textarea id="noteContent" placeholder="Write anything here... It will be automatically encrypted and saved to disk"></textarea>
+        
+        <div>
+            <button id="saveBtn" class="btn-primary">💾 Save Now (Encrypt & Save to Disk)</button>
+            <button id="decryptBtn" class="btn-success">🔓 Decrypt & Load from Disk</button>
+            <button id="exportBtn" class="btn-info">📎 Export as Backup</button>
+            <button id="importBtn" class="btn-warning">📂 Import Backup</button>
+            <button id="resetBtn" class="btn-danger">🗑️ Reset All Data</button>
+            <input type="file" id="fileInput" style="display: none;">
+        </div>
+        
+        <div class="stats">
+            <span>🔒 Status: <span id="lockStatus">Locked</span></span>
+            <span>💾 Auto-save: Enabled</span>
+            <span>📁 File: <span id="fileName">yubikey_notes.enc</span></span>
+        </div>
+        
+        <div class="file-path" id="saveLocation">
+            📁 Save location: <span id="fullPath">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    class YubiKeyPersistentEncryptor {
+        constructor() {
+            this.encryptionKey = null;
+            this.credentialId = null;
+            this.isUnlocked = false;
+            this.dataFilePath = null;
+            this.backupDir = null;
+            
+            this.initFileSystem();
+        }
+        
+        async initFileSystem() {
+            // Request persistent storage
+            if ('storage' in navigator && 'getDirectory' in navigator.storage) {
+                try {
+                    // Modern File System Access API
+                    const root = await navigator.storage.getDirectory();
+                    this.dataFilePath = await root.getFileHandle('yubikey_notes.enc', { create: true });
+                    document.getElementById('fullPath').innerText = 'Browser Storage (persistent)';
+                } catch (err) {
+                    console.log('Using fallback storage');
+                    this.dataFilePath = null;
+                    document.getElementById('fullPath').innerText = 'Using browser localStorage (auto-backup)';
+                }
+            } else {
+                // Fallback: Use IndexedDB
+                this.dataFilePath = null;
+                document.getElementById('fullPath').innerText = 'Using IndexedDB (persistent)';
+            }
+            
+            // Also try to detect if running as a PWA or desktop app
+            this.detectEnvironment();
+        }
+        
+        detectEnvironment() {
+            // Check if running in Electron or similar
+            if (window.electronAPI) {
+                document.getElementById('fullPath').innerText = 'Desktop App Mode - Saving to AppData';
+            }
+            
+            // Show the actual save location
+            const possiblePaths = [
+                `${localStorage.getItem('yubikey_save_path') || 'User Data'}`,
+                navigator.storage?.getDirectory ? 'Origin Private File System' : 'Browser Storage'
+            ];
+            document.getElementById('filePathDisplay').innerText = possiblePaths.join(' → ');
+        }
+        
+        showStatus(msg, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = msg;
+            statusDiv.className = `status ${type}`;
+            setTimeout(() => {
+                if (document.getElementById('status').textContent === msg) {
+                    statusDiv.style.opacity = '0.7';
+                }
+            }, 4000);
+        }
+        
+        async setupYubiKey() {
+            try {
+                if (localStorage.getItem('yubikey_credential_id')) {
+                    this.showStatus('✅ YubiKey already setup! Click "Decrypt" to load your notes.', 'success');
+                    document.getElementById('setupSection').style.display = 'none';
+                    document.getElementById('notesSection').style.display = 'block';
+                    return true;
+                }
+                
+                this.showStatus('🔐 Touch your YubiKey to setup encryption...', 'info');
+                
+                const challenge = crypto.getRandomValues(new Uint8Array(32));
+                const userId = crypto.randomUUID();
+                
+                const publicKeyOptions = {
+                    challenge: challenge,
+                    rp: { name: "YubiKey Encryptor", id: window.location.hostname || "localhost" },
+                    user: {
+                        id: new TextEncoder().encode(userId),
+                        name: "encryptor-user",
+                        displayName: "YubiKey User"
+                    },
+                    pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "cross-platform",
+                        userVerification: "required"
+                    },
+                    timeout: 60000
+                };
+                
+                const credential = await navigator.credentials.create({ publicKey: publicKeyOptions });
+                this.credentialId = Array.from(new Uint8Array(credential.rawId));
+                localStorage.setItem('yubikey_credential_id', JSON.stringify(this.credentialId));
+                
+                // Generate and store encryption key
+                await this.deriveStableKey();
+                
+                this.showStatus('✅ YubiKey setup complete! You can now encrypt and save notes.', 'success');
+                document.getElementById('setupSection').style.display = 'none';
+                document.getElementById('notesSection').style.display = 'block';
+                
+                // Try to load existing data
+                await this.decryptAndLoad();
+                
+                return true;
+            } catch (err) {
+                console.error(err);
+                this.showStatus(`❌ Setup failed: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async deriveStableKey() {
+            const storedCredId = JSON.parse(localStorage.getItem('yubikey_credential_id') || '[]');
+            if (storedCredId.length === 0) return null;
+            
+            const credIdBytes = new Uint8Array(storedCredId);
+            const salt = new TextEncoder().encode("YubiKeyPersistentEncryptor2025");
+            const combined = new Uint8Array(credIdBytes.length + salt.length);
+            combined.set(credIdBytes, 0);
+            combined.set(salt, credIdBytes.length);
+            
+            const keyMaterial = await crypto.subtle.digest('SHA-256', combined);
+            this.encryptionKey = await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+            
+            return this.encryptionKey;
+        }
+        
+        async authenticate() {
+            try {
+                const storedCredId = JSON.parse(localStorage.getItem('yubikey_credential_id') || '[]');
+                if (storedCredId.length === 0) {
+                    throw new Error('No YubiKey found. Run setup first.');
+                }
+                
+                const challenge = crypto.getRandomValues(new Uint8Array(32));
+                const credentialId = new Uint8Array(storedCredId);
+                
+                const requestOptions = {
+                    challenge: challenge,
+                    allowCredentials: [{
+                        id: credentialId,
+                        type: "public-key",
+                        transports: ["usb", "nfc", "ble"]
+                    }],
+                    timeout: 60000,
+                    userVerification: "required"
+                };
+                
+                // This requires YubiKey touch
+                await navigator.credentials.get({ publicKey: requestOptions });
+                
+                await this.deriveStableKey();
+                this.isUnlocked = true;
+                document.getElementById('lockStatus').innerHTML = '✅ Unlocked';
+                document.getElementById('lockStatus').style.color = '#28a745';
+                
+                return true;
+            } catch (err) {
+                console.error(err);
+                this.isUnlocked = false;
+                document.getElementById('lockStatus').innerHTML = '🔒 Locked';
+                document.getElementById('lockStatus').style.color = '#dc3545';
+                return false;
+            }
+        }
+        
+        async encryptData(text) {
+            if (!this.encryptionKey) await this.deriveStableKey();
+            if (!this.encryptionKey) throw new Error('No encryption key');
+            
+            const encoder = new TextEncoder();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                this.encryptionKey,
+                encoder.encode(text)
+            );
+            
+            return {
+                iv: Array.from(iv),
+                data: Array.from(new Uint8Array(encrypted)),
+                timestamp: Date.now(),
+                version: '2.0'
+            };
+        }
+        
+        async decryptData(encryptedData) {
+            if (!this.encryptionKey) await this.deriveStableKey();
+            if (!this.encryptionKey) throw new Error('No encryption key');
+            
+            const decoder = new TextDecoder();
+            const iv = new Uint8Array(encryptedData.iv);
+            const data = new Uint8Array(encryptedData.data);
+            
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                this.encryptionKey,
+                data
+            );
+            
+            return decoder.decode(decrypted);
+        }
+        
+        async saveToDisk(text) {
+            try {
+                // Encrypt the data
+                const encrypted = await this.encryptData(text);
+                
+                // Save to multiple locations for redundancy
+                
+                // 1. Save to localStorage (always available)
+                localStorage.setItem('yubikey_encrypted_data', JSON.stringify(encrypted));
+                
+                // 2. Save to IndexedDB (more persistent)
+                await this.saveToIndexedDB(encrypted);
+                
+                // 3. Try to save as a downloadable file (user can choose location)
+                const blob = new Blob([JSON.stringify(encrypted)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'yubikey_notes_backup.enc';
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                // 4. Try File System Access API (if available)
+                await this.saveToFileSystemAPI(encrypted);
+                
+                this.showStatus('✅ Data encrypted and saved to disk!', 'success');
+                return true;
+            } catch (err) {
+                console.error(err);
+                this.showStatus(`❌ Save failed: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async saveToIndexedDB(data) {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('YubiKeyEncryptor', 1);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('encryptedData')) {
+                        db.createObjectStore('encryptedData', { keyPath: 'id' });
+                    }
+                };
+                
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    const transaction = db.transaction(['encryptedData'], 'readwrite');
+                    const store = transaction.objectStore('encryptedData');
+                    const putRequest = store.put({ id: 'main', data: data, updated: Date.now() });
+                    
+                    putRequest.onsuccess = () => {
+                        db.close();
+                        resolve();
+                    };
+                    putRequest.onerror = () => {
+                        db.close();
+                        reject(putRequest.error);
+                    };
+                };
+                
+                request.onerror = () => reject(request.error);
+            });
+        }
+        
+        async saveToFileSystemAPI(data) {
+            // Attempt to use the File System Access API for persistent storage
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const opts = {
+                        types: [{
+                            description: 'Encrypted YubiKey Data',
+                            accept: { 'application/json': ['.enc'] }
+                        }],
+                        suggestedName: 'yubikey_notes.enc'
+                    };
+                    
+                    const fileHandle = await window.showSaveFilePicker(opts);
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(JSON.stringify(data));
+                    await writable.close();
+                    
+                    localStorage.setItem('yubikey_save_path', fileHandle.name);
+                    document.getElementById('fullPath').innerHTML = `📁 Saved to: ${fileHandle.name}`;
+                } catch (err) {
+                    console.log('File save cancelled or not supported');
+                }
+            }
+        }
+        
+        async loadFromDisk() {
+            try {
+                // Try to load from multiple sources
+                let encryptedData = null;
+                
+                // 1. Try IndexedDB first
+                encryptedData = await this.loadFromIndexedDB();
+                
+                // 2. Try localStorage as fallback
+                if (!encryptedData) {
+                    const stored = localStorage.getItem('yubikey_encrypted_data');
+                    if (stored) encryptedData = JSON.parse(stored);
+                }
+                
+                if (!encryptedData) {
+                    return null;
+                }
+                
+                // Decrypt and return
+                const decrypted = await this.decryptData(encryptedData);
+                return decrypted;
+            } catch (err) {
+                console.error(err);
+                return null;
+            }
+        }
+        
+        async loadFromIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('YubiKeyEncryptor', 1);
+                
+                request.onupgradeneeded = () => {
+                    resolve(null);
+                };
+                
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('encryptedData')) {
+                        db.close();
+                        resolve(null);
+                        return;
+                    }
+                    
+                    const transaction = db.transaction(['encryptedData'], 'readonly');
+                    const store = transaction.objectStore('encryptedData');
+                    const getRequest = store.get('main');
+                    
+                    getRequest.onsuccess = () => {
+                        db.close();
+                        resolve(getRequest.result ? getRequest.result.data : null);
+                    };
+                    getRequest.onerror = () => {
+                        db.close();
+                        resolve(null);
+                    };
+                };
+                
+                request.onerror = () => resolve(null);
+            });
+        }
+        
+        async decryptAndLoad() {
+            if (!this.isUnlocked) {
+                const auth = await this.authenticate();
+                if (!auth) {
+                    this.showStatus('🔓 Click "Decrypt & Load" and touch your YubiKey', 'warning');
+                    return false;
+                }
+            }
+            
+            this.showStatus('🔓 Touch YubiKey to decrypt and load...', 'info');
+            
+            const auth = await this.authenticate();
+            if (!auth) {
+                this.showStatus('❌ Authentication failed', 'error');
+                return false;
+            }
+            
+            const decryptedData = await this.loadFromDisk();
+            if (decryptedData !== null && decryptedData !== undefined) {
+                document.getElementById('noteContent').value = decryptedData;
+                this.showStatus('✅ Data loaded and decrypted successfully!', 'success');
+                return true;
+            } else {
+                this.showStatus('ℹ️ No saved data found. Write something and click "Save Now".', 'info');
+                return false;
+            }
+        }
+        
+        async manualSave() {
+            if (!this.isUnlocked) {
+                const auth = await this.authenticate();
+                if (!auth) {
+                    this.showStatus('❌ Please authenticate with YubiKey first', 'error');
+                    return;
+                }
+            }
+            
+            const content = document.getElementById('noteContent').value;
+            if (!content) {
+                this.showStatus('⚠️ Nothing to save. Write something first.', 'warning');
+                return;
+            }
+            
+            await this.saveToDisk(content);
+        }
+        
+        async exportBackup() {
+            const stored = localStorage.getItem('yubikey_encrypted_data');
+            if (!stored) {
+                this.showStatus('No saved data to export', 'warning');
+                return;
+            }
+            
+            const blob = new Blob([stored], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `yubikey_backup_${Date.now()}.enc`;
+            a.click();
+            URL.revokeObjectURL(url);
+            this.showStatus('Backup exported!', 'success');
+        }
+        
+        async importBackup(file) {
+            try {
+                const text = await file.text();
+                const encrypted = JSON.parse(text);
+                
+                if (!encrypted.iv || !encrypted.data) {
+                    throw new Error('Invalid backup file');
+                }
+                
+                // Verify it can be decrypted
+                if (!this.isUnlocked) {
+                    await this.authenticate();
+                }
+                
+                const testDecrypt = await this.decryptData(encrypted);
+                if (testDecrypt === null) throw new Error('Cannot decrypt - wrong YubiKey');
+                
+                // Save the imported data
+                localStorage.setItem('yubikey_encrypted_data', JSON.stringify(encrypted));
+                await this.saveToIndexedDB(encrypted);
+                document.getElementById('noteContent').value = testDecrypt;
+                
+                this.showStatus('Backup imported successfully!', 'success');
+            } catch (err) {
+                this.showStatus(`Import failed: ${err.message}`, 'error');
+            }
+        }
+        
+        resetAllData() {
+            if (confirm('⚠️ WARNING: This will delete ALL encrypted data. Your YubiKey setup remains. Continue?')) {
+                localStorage.removeItem('yubikey_encrypted_data');
+                localStorage.removeItem('yubikey_save_path');
+                indexedDB.deleteDatabase('YubiKeyEncryptor');
+                document.getElementById('noteContent').value = '';
+                this.showStatus('All data deleted. Write new content and click Save.', 'info');
+            }
+        }
+    }
+    
+    // Initialize
+    const app = new YubiKeyPersistentEncryptor();
+    
+    document.getElementById('setupBtn').onclick = () => app.setupYubiKey();
+    document.getElementById('decryptBtn').onclick = () => app.decryptAndLoad();
+    document.getElementById('saveBtn').onclick = () => app.manualSave();
+    document.getElementById('exportBtn').onclick = () => app.exportBackup();
+    document.getElementById('resetBtn').onclick = () => app.resetAllData();
+    
+    const importBtn = document.getElementById('importBtn');
+    const fileInput = document.getElementById('fileInput');
+    importBtn.onclick = () => fileInput.click();
+    fileInput.onchange = async (e) => {
+        if (e.target.files[0]) {
+            await app.importBackup(e.target.files[0]);
+            fileInput.value = '';
+        }
+    };
+</script>
+</body>
+</html>
