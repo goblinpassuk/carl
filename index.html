@@ -1,269 +1,592 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GoblinPass - Home</title>
-    <link rel="stylesheet" href="assets/css/style.css?v=20260611-about-me" />
-    <meta name="author" content="Carl Hatton">
-    <meta name="copyright" content="Carl Hatton">
-    <meta name="application-name" content="GoblinPass">
-  </head>
-  <body>
-    <header class="site-header">
-      <nav class="nav" aria-label="Main navigation">
-        <a class="brand" href="index.html" aria-label="GoblinPass home">
-          <span class="brand-mark" aria-hidden="true">GP</span>
-          <span>GoblinPass</span>
-        </a>
-        <button id="navToggle" class="nav-toggle" type="button" aria-label="Open navigation menu" aria-controls="navLinks" aria-expanded="false">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-        <div id="navLinks" class="nav-links">
-          <a class="nav-link" href="index.html">Home</a>
-          <details class="nav-dropdown">
-            <summary>Web Tools</summary>
-            <div class="dropdown-menu">
-              <a href="app.html">Launch App</a>
-              <a href="checker.html">Password Checker</a>
-              <a href="app.html#build-fork">Build Fork</a>
-            </div>
-          </details>
-          <details class="nav-dropdown">
-            <summary>Security</summary>
-            <div class="dropdown-menu">
-              <a href="security.html">Security Overview</a>
-              <a href="security-model.html">Security Model</a>
-              <a href="security.html#trusted-device-protection">Trusted Device Protection</a>
-              <a href="security.html#security-key">Additional Secret</a>
-              <a href="security.html#google-security-factor">Google Security Factor</a>
-              <a href="security.html#yubikey-prf">YubiKey PRF</a>
-              <a href="security.html#copy-password-only">Copy Password Only</a>
-            </div>
-          </details>
-          <a class="nav-link" href="guide.html">Guide</a>
-          <a class="nav-link" href="faq.html">FAQ</a>
-          <details class="nav-dropdown">
-            <summary>About Us</summary>
-            <div class="dropdown-menu">
-              <a href="about-me.html">About Me</a><a href="about.html">About GoblinPass</a>
-              <a href="github.html">Why We Use GitHub</a>
-              <a href="lesspass.html">GoblinPass vs LessPass</a>
-            </div>
-          </details>
-          <a class="nav-link build-link" href="goblinpass/index.html">Launch App</a>
-        </div>
-      </nav>
-    </header>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YubiKey Encrypted Notes</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; 
+            max-width: 800px; 
+            margin: 2rem auto; 
+            padding: 1rem;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #1a1a2e; 
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        textarea { 
+            width: 100%; 
+            height: 300px; 
+            font-family: 'Courier New', monospace; 
+            padding: 1rem; 
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            resize: vertical;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+        button { 
+            padding: 0.75rem 1.5rem; 
+            margin: 0.5rem 0.5rem 0 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        button:hover { 
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-primary:hover { background: #357abd; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .hidden { display: none; }
+        .status { 
+            padding: 0.75rem; 
+            margin: 1rem 0; 
+            border-radius: 8px; 
+            font-weight: 500;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .note-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 13px;
+            color: #666;
+        }
+        .status-text {
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+            color: #666;
+        }
+        hr {
+            margin: 20px 0;
+            border: none;
+            border-top: 2px solid #eee;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        🔐 YubiKey Encrypted Notes
+        <span style="font-size: 14px; font-weight: normal;">(WebAuthn + AES-256)</span>
+    </h1>
+    
+    <div id="status" class="status info">
+        💡 Ready - Register your YubiKey to begin
+    </div>
 
-    <main id="top">
-      <section class="hero product-hero section">
-        <div class="hero-copy">
-          <p class="eyebrow">Local-first password security with YubiKey PRF</p>
-          <h1>Generate Strong Passwords Without Storing Them</h1>
-          <p class="hero-subtitle">GoblinPass is a local-first/stateless password generator with optional YubiKey password-ingredient support.</p>
-          <p>
-            Create unique passwords from inputs you control, keep generation on
-            your device, and add a YubiKey PRF factor for high-value accounts
-            when supported by your browser, operating system, and hardware key.
-          </p>
-          <div class="hero-actions" aria-label="Primary actions">
-            <a class="demo-link" href="app.html">Launch App</a>
-            <a class="demo-link secondary-link" href="app.html#build-fork">Build Fork</a>
-          </div>
+    <div id="authSection">
+        <button id="registerBtn" class="btn-primary">🔑 Register YubiKey (Touch it)</button>
+        <button id="loginBtn" class="btn-success">🔓 Unlock with YubiKey</button>
+        <div class="note-info">
+            ⚡ <strong>How it works:</strong><br>
+            1. Click "Register" and touch your YubiKey when prompted<br>
+            2. After registration, click "Unlock" and touch again<br>
+            3. Your notes are encrypted with AES-256-GCM using a key derived from your YubiKey<br>
+            4. Data is stored encrypted in your browser (localStorage)<br>
+            5. Only your YubiKey can decrypt the data
         </div>
-        <div class="hero-panel app-preview-panel" aria-label="GoblinPass generator preview">
-          <div class="app-preview-brand">
-            <span class="mini-logo">GP</span>
-            <div>
-              <strong>GoblinPass</strong>
-              <span>Stateless passwords. Optional YubiKey PRF.</span>
-            </div>
-          </div>
-          <div class="app-preview-tabs" aria-label="App sections preview">
-            <span class="active">Generator</span>
-            <span>Vault</span>
-            <span>Settings</span>
-          </div>
-          <div class="app-preview-card">
-            <label class="mini-field"><span>Website ID</span><strong>Unique ID</strong></label>
-            <label class="mini-field"><span>Site (optional)</span><strong>example.com</strong></label>
-            <label class="mini-field"><span>Login (optional)</span><strong>username or email</strong></label>
-            <div class="mini-check"><span></span>Store full login for this entry</div>
-            <label class="mini-field password-row">
-              <span>Master Password</span>
-              <strong>Never saved</strong>
-              <em>Show</em>
-            </label>
-            <div class="mini-yubikey-row">
-              <span class="mini-key-icon">YK</span>
-              <div>
-                <strong>Use YubiKey</strong>
-                <small>PRF becomes part of the password recipe</small>
-              </div>
-            </div>
-            <label class="mini-field"><span>Password Style</span><strong>Maximum Security</strong></label>
-            <p class="app-preview-help">
-              Memorable passwords are easier to enter on consoles, TVs, handheld
-              devices, and controllers. Maximum Security remains recommended for
-              email, banking, and important accounts.
-            </p>
-            <div class="mini-options">
-              <span>&#10003; a-z</span>
-              <span>&#10003; A-Z</span>
-              <span>&#10003; 0-9</span>
-              <span>&#10003; %!@</span>
-            </div>
-            <div class="mini-two">
-              <label class="mini-field"><span>Length</span><strong>16</strong></label>
-              <label class="mini-field"><span>Counter</span><strong>1</strong></label>
-            </div>
-            <div class="mini-actions"><strong>Generate & copy</strong><span>Save</span></div>
-            <div class="mini-output">Generated and copied: C0V********2#1n <em>Show</em></div>
-          </div>
-        </div>
-      </section>
+    </div>
 
-      <section class="section trust-strip" aria-label="GoblinPass trust points">
-        <span>&#10003; Local First</span>
-        <span>&#10003; No Password Storage</span>
-        <span>&#10003; YubiKey PRF Ingredient</span>
-        <span>&#10003; Publicly Viewable Source</span>
-        <span>&#10003; Optional Google Security Factor</span>
-      </section>
+    <div id="notesSection" class="hidden">
+        <h2>📝 Your Private Notes</h2>
+        <textarea id="noteContent" placeholder="Write anything here - it will be encrypted with your YubiKey..."></textarea>
+        <br>
+        <button id="saveBtn" class="btn-primary">💾 Save (Encrypt & Store)</button>
+        <button id="exportBtn" class="btn-success">📎 Export Encrypted File</button>
+        <button id="importBtn" class="btn-secondary">📂 Import Encrypted File</button>
+        <button id="lockBtn" class="btn-danger">🔒 Lock & Clear</button>
+        <input type="file" id="fileInput" style="display: none;" accept=".encrypted.json">
+        <div class="status-text" id="keyStatus"></div>
+    </div>
+    
+    <hr>
+    <div style="font-size: 12px; color: #999; text-align: center;">
+        🔒 All encryption happens locally in your browser. Your YubiKey private key never leaves the device.
+    </div>
+</div>
 
-      <section class="section content-section landing-process" aria-labelledby="home-steps-title">
-        <div class="section-intro landing-section-intro">
-          <p class="eyebrow">Three steps</p>
-          <h2 id="home-steps-title">Simple inputs, repeatable output</h2>
-          <p>GoblinPass turns the same secure inputs into the same password every time.</p>
-        </div>
-        <div class="step-flow" aria-label="GoblinPass three step process">
-          <article class="step-card">
-            <span class="step-number">Step 1</span>
-            <h3>Site ID</h3>
-          </article>
-          <article class="step-card">
-            <span class="step-number">Step 2</span>
-            <h3>Master Password</h3>
-          </article>
-          <article class="step-card">
-            <span class="step-number">Step 3</span>
-            <h3>Optional YubiKey PRF</h3>
-          </article>
-          <article class="step-result-card">
-            <span class="result-label">Result</span>
-            <h3>Generated Password</h3>
-          </article>
-        </div>
-      </section>
+<script>
+    // ============================================================
+    // YubiKey Encrypted Notes - Complete Single File Solution
+    // ============================================================
 
-      <section class="section content-section yubikey-highlight landing-yubikey" aria-labelledby="yubikey-home-title">
-        <div class="section-intro landing-section-intro">
-          <p class="eyebrow">Hardware-backed stateless password generation</p>
-          <h2 id="yubikey-home-title">YubiKey PRF becomes part of the password recipe</h2>
-          <p>
-            GoblinPass does not use YubiKey as normal two-factor login. When
-            YubiKey mode is enabled, the generated password depends on PRF data
-            returned by the physical key.
-          </p>
-        </div>
-        <div class="premium-formula-card" aria-label="YubiKey PRF password formula">
-          <div class="formula-ingredients">
-            <span>Website ID</span>
-            <span>Master Password</span>
-            <span>Optional Secret</span>
-            <span class="hardware-ingredient">YubiKey PRF</span>
-          </div>
-          <div class="formula-equals" aria-hidden="true">=</div>
-          <div class="formula-result">
-            <span>Generated Password</span>
-          </div>
-        </div>
-        <p class="small-note formula-note">
-          Best tested on Windows 11 with a PRF/hmac-secret compatible YubiKey.
-          Mobile NFC support may vary by browser and device.
-        </p>
-      </section>
+    class YubiKeyEncryptedNotes {
+        constructor() {
+            this.currentKey = null;
+            this.storageKey = 'yubikey_encrypted_notes_v2';
+            this.credentialIdKey = 'yubikey_credential_id';
+            this.userIdKey = 'yubikey_user_id';
+            this.saltKey = 'yubikey_salt';
+            
+            this.init();
+        }
 
-      <section class="section feature-card-grid" aria-labelledby="features-title">
-        <div class="section-intro">
-          <p class="eyebrow">Core features</p>
-          <h2 id="features-title">Built for local-first password control</h2>
-          <p>
-            GoblinPass keeps the important parts lightweight: no online password
-            database, clear local controls, and optional extra protection.
-          </p>
-        </div>
-        <div class="product-cards">
-          <article class="product-card">
-            <span class="card-icon" aria-hidden="true">&#128272;</span>
-            <h3>Stateless</h3>
-            <p>Regenerate the same password from the same private inputs instead of saving the generated password online.</p>
-            <a class="card-button" href="security.html">Security Overview</a>
-          </article>
-          <article class="product-card">
-            <span class="card-icon" aria-hidden="true">&#128452;</span>
-            <h3>Local Vault</h3>
-            <p>Use optional local vault metadata to remember site IDs, aliases, counters, hints, and notes.</p>
-            <a class="card-button" href="app.html">Launch App</a>
-          </article>
-          <article class="product-card">
-            <span class="card-icon" aria-hidden="true">&#128187;</span>
-            <h3>Publicly Viewable Source</h3>
-            <p>Review the source and inspect the project history for transparency. Use beyond viewing and studying requires permission.</p>
-            <a class="card-button" href="github.html">View Transparency</a>
-          </article>
-          <article class="product-card">
-            <span class="card-icon" aria-hidden="true">&#128737;</span>
-            <h3>YubiKey PRF</h3>
-            <p>Use a supported YubiKey as a hardware password ingredient, so the same inputs without the key do not recreate the same password.</p>
-            <a class="card-button" href="guide.html#yubikey-guide">YubiKey Guide</a>
-          </article>
-        </div>
-      </section>
-    </main>
+        init() {
+            // Check if YubiKey was already registered
+            const hasCredential = localStorage.getItem(this.credentialIdKey);
+            if (hasCredential) {
+                this.showStatus('✅ YubiKey already registered. Click "Unlock" to access your notes.', 'success');
+            } else {
+                this.showStatus('🔐 No YubiKey registered yet. Click "Register" to set up your YubiKey.', 'info');
+            }
+        }
 
-    <footer class="site-footer">
-      <div class="footer-brand">
-        <p><strong>GoblinPass</strong></p>
-        <p>Tiny vault. Minimal secrets.</p>
-        <p>Publicly viewable source. Local first. No password storage.</p>
-      </div>
-      <nav class="footer-links" aria-label="Footer navigation">
-        <a href="index.html">Home</a>
-        <a href="about.html">About Us</a>
-        <a href="checker.html">Password Checker</a>
-        <a href="guide.html">Guide</a>
-        <a href="security.html">Security</a>
-        <a href="github.html">GitHub</a>
-      </nav>
-      <div class="footer-source">
-        <p>GoblinPass source is publicly viewable.</p>
-        <p>Review the source code and license terms before using or adapting the project.</p>
-        <div class="footer-actions">
-          <a class="demo-link" href="https://github.com/goblinpassuk/goblinpassuk.github.io" target="_blank" rel="noopener noreferrer">View Source</a>
-          <a class="demo-link secondary-link" href="app.html#build-fork">Build Fork</a>
-        </div>
-      </div>
-      <p class="footer-attribution">GoblinPass &copy; 2026 Carl Hatton &middot; <a href="https://github.com/goblinpassuk/goblinpassuk.github.io/blob/main/LICENSE">License</a></p>
-    </footer>
+        showStatus(msg, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            if (!statusDiv) return;
+            statusDiv.textContent = msg;
+            statusDiv.className = `status ${type}`;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (statusDiv.textContent === msg) {
+                    // Don't auto-hide important messages
+                    if (type !== 'error' && !msg.includes('Ready')) {
+                        statusDiv.style.opacity = '0.5';
+                    }
+                }
+            }, 5000);
+        }
 
-    <script src="assets/js/app.js"></script>
-  </body>
+        updateKeyStatus() {
+            const keyStatus = document.getElementById('keyStatus');
+            if (keyStatus) {
+                if (this.currentKey) {
+                    keyStatus.innerHTML = '✅ YubiKey UNLOCKED - Notes can be read/saved';
+                    keyStatus.style.color = '#28a745';
+                } else {
+                    keyStatus.innerHTML = '🔒 LOCKED - Click "Unlock with YubiKey" first';
+                    keyStatus.style.color = '#dc3545';
+                }
+            }
+        }
+
+        generateChallenge() {
+            const challenge = new Uint8Array(32);
+            crypto.getRandomValues(challenge);
+            return challenge;
+        }
+
+        async registerYubiKey() {
+            try {
+                // Check if already registered
+                if (localStorage.getItem(this.credentialIdKey)) {
+                    this.showStatus('⚠️ YubiKey already registered! Use "Unlock" instead, or clear browser data to re-register.', 'warning');
+                    return false;
+                }
+
+                this.showStatus('🔐 Registering YubiKey... Please touch your YubiKey when prompted.', 'info');
+                
+                const challenge = await this.generateChallenge();
+                const userId = crypto.randomUUID();
+                const userDisplayName = "YubiKey User " + userId.slice(0, 8);
+                
+                // Generate a random salt for key derivation
+                const salt = crypto.getRandomValues(new Uint8Array(32));
+                localStorage.setItem(this.saltKey, JSON.stringify(Array.from(salt)));
+                
+                const publicKeyCredentialCreationOptions = {
+                    challenge: challenge,
+                    rp: { 
+                        name: "YubiKey Encrypted Notes", 
+                        id: window.location.hostname || "localhost"
+                    },
+                    user: {
+                        id: new TextEncoder().encode(userId),
+                        name: "yubikey-notes-user",
+                        displayName: userDisplayName
+                    },
+                    pubKeyCredParams: [
+                        { alg: -7, type: "public-key" },   // ES256
+                        { alg: -257, type: "public-key" }  // RS256
+                    ],
+                    authenticatorSelection: {
+                        authenticatorAttachment: "cross-platform",
+                        requireResidentKey: false,
+                        userVerification: "preferred"
+                    },
+                    timeout: 60000,
+                    attestation: "none"
+                };
+
+                const credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions
+                });
+
+                if (!credential || !credential.rawId) {
+                    throw new Error("Failed to get credential from YubiKey");
+                }
+
+                // Store credential ID
+                const credentialId = Array.from(new Uint8Array(credential.rawId));
+                localStorage.setItem(this.credentialIdKey, JSON.stringify(credentialId));
+                localStorage.setItem(this.userIdKey, userId);
+                
+                this.showStatus('✅ YubiKey registered successfully! Click "Unlock" to start using it.', 'success');
+                return true;
+                
+            } catch (err) {
+                console.error('Registration error:', err);
+                let errorMsg = err.message;
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = 'You cancelled or didn\'t touch your YubiKey in time. Please try again.';
+                } else if (err.name === 'NotSupportedError') {
+                    errorMsg = 'Your browser doesn\'t support WebAuthn. Try Chrome, Edge, or Firefox.';
+                }
+                this.showStatus(`❌ Registration failed: ${errorMsg}`, 'error');
+                return false;
+            }
+        }
+
+        async authenticateWithYubiKey() {
+            const storedCredId = localStorage.getItem(this.credentialIdKey);
+            if (!storedCredId) {
+                this.showStatus('❌ No registered YubiKey found. Please click "Register" first.', 'error');
+                return null;
+            }
+
+            try {
+                this.showStatus('🔓 Please touch your YubiKey to authenticate...', 'info');
+                
+                const challenge = await this.generateChallenge();
+                const credentialIdArray = JSON.parse(storedCredId);
+                const credentialId = new Uint8Array(credentialIdArray);
+
+                const publicKeyCredentialRequestOptions = {
+                    challenge: challenge,
+                    allowCredentials: [{
+                        id: credentialId,
+                        type: "public-key",
+                        transports: ["usb", "nfc", "ble"]
+                    }],
+                    timeout: 60000,
+                    userVerification: "preferred"
+                };
+
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                });
+
+                if (!assertion || !assertion.response) {
+                    throw new Error("Failed to get authentication from YubiKey");
+                }
+
+                // Derive encryption key from authenticator data + signature
+                const authData = assertion.response.authenticatorData;
+                const signature = assertion.response.signature;
+                
+                // Combine for key material
+                const combined = new Uint8Array(authData.byteLength + signature.byteLength);
+                combined.set(new Uint8Array(authData), 0);
+                combined.set(new Uint8Array(signature), authData.byteLength);
+                
+                const keyMaterial = await crypto.subtle.digest('SHA-256', combined);
+                
+                // Add salt for additional security
+                let salt = localStorage.getItem(this.saltKey);
+                let finalKeyMaterial = keyMaterial;
+                if (salt) {
+                    const saltArray = new Uint8Array(JSON.parse(salt));
+                    const salted = new Uint8Array(keyMaterial.byteLength + saltArray.length);
+                    salted.set(new Uint8Array(keyMaterial), 0);
+                    salted.set(saltArray, keyMaterial.byteLength);
+                    finalKeyMaterial = await crypto.subtle.digest('SHA-256', salted);
+                }
+                
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw', finalKeyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+                );
+                
+                this.currentKey = cryptoKey;
+                this.updateKeyStatus();
+                this.showStatus('✅ YubiKey authentication successful! Your notes are now accessible.', 'success');
+                return cryptoKey;
+                
+            } catch (err) {
+                console.error('Authentication error:', err);
+                let errorMsg = err.message;
+                if (err.name === 'NotAllowedError') {
+                    errorMsg = 'You cancelled or didn\'t touch your YubiKey. Please try again.';
+                }
+                this.showStatus(`❌ Authentication failed: ${errorMsg}`, 'error');
+                return null;
+            }
+        }
+
+        async encryptData(text, key) {
+            const encoder = new TextEncoder();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encodedData = encoder.encode(text);
+            
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encodedData
+            );
+            
+            return {
+                iv: Array.from(iv),
+                data: Array.from(new Uint8Array(encrypted)),
+                version: 1,
+                timestamp: Date.now()
+            };
+        }
+
+        async decryptData(encryptedObj, key) {
+            const decoder = new TextDecoder();
+            const iv = new Uint8Array(encryptedObj.iv);
+            const data = new Uint8Array(encryptedObj.data);
+            
+            try {
+                const decrypted = await crypto.subtle.decrypt(
+                    { name: 'AES-GCM', iv: iv },
+                    key,
+                    data
+                );
+                return decoder.decode(decrypted);
+            } catch (err) {
+                console.error('Decryption failed - wrong YubiKey or corrupted data:', err);
+                return null;
+            }
+        }
+
+        async saveNotes(text) {
+            if (!this.currentKey) {
+                this.showStatus('❌ Please authenticate with YubiKey first (click "Unlock")', 'error');
+                return false;
+            }
+            
+            try {
+                const encrypted = await this.encryptData(text, this.currentKey);
+                localStorage.setItem(this.storageKey, JSON.stringify(encrypted));
+                this.showStatus('💾 Notes saved and encrypted with your YubiKey!', 'success');
+                return true;
+            } catch (err) {
+                this.showStatus(`❌ Save failed: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async loadNotes() {
+            if (!this.currentKey) {
+                this.showStatus('❌ Please authenticate with YubiKey first (click "Unlock")', 'error');
+                return null;
+            }
+            
+            const stored = localStorage.getItem(this.storageKey);
+            if (!stored) {
+                return '';
+            }
+            
+            try {
+                const encrypted = JSON.parse(stored);
+                const decrypted = await this.decryptData(encrypted, this.currentKey);
+                if (decrypted === null) {
+                    this.showStatus('❌ Failed to decrypt. Make sure you\'re using the correct YubiKey.', 'error');
+                    return null;
+                }
+                return decrypted;
+            } catch (err) {
+                this.showStatus(`❌ Load failed: ${err.message}`, 'error');
+                return null;
+            }
+        }
+
+        async exportToFile() {
+            if (!this.currentKey) {
+                this.showStatus('❌ Authenticate with YubiKey first to export', 'error');
+                return;
+            }
+            
+            const stored = localStorage.getItem(this.storageKey);
+            if (!stored) {
+                this.showStatus('ℹ️ No saved notes to export', 'info');
+                return;
+            }
+            
+            try {
+                const encrypted = JSON.parse(stored);
+                const exportData = {
+                    ...encrypted,
+                    exported: true,
+                    description: "YubiKey Encrypted Notes - Requires same YubiKey to decrypt"
+                };
+                
+                const jsonStr = JSON.stringify(exportData, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `yubikey_notes_backup_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.encrypted.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                this.showStatus('📎 Encrypted notes exported to file! Keep it safe.', 'success');
+            } catch (err) {
+                this.showStatus(`❌ Export failed: ${err.message}`, 'error');
+            }
+        }
+
+        async importFromFile(file) {
+            if (!this.currentKey) {
+                this.showStatus('❌ Authenticate with YubiKey first to import', 'error');
+                return false;
+            }
+            
+            try {
+                const text = await file.text();
+                const encrypted = JSON.parse(text);
+                
+                // Validate format
+                if (!encrypted.iv || !encrypted.data) {
+                    throw new Error('Invalid encrypted file format');
+                }
+                
+                // Test decrypt to verify this YubiKey works
+                const testDecrypt = await this.decryptData(encrypted, this.currentKey);
+                if (testDecrypt === null) {
+                    throw new Error('This YubiKey cannot decrypt this file (different key)');
+                }
+                
+                // Save the imported encrypted data
+                const { iv, data, version, timestamp } = encrypted;
+                localStorage.setItem(this.storageKey, JSON.stringify({ iv, data, version, timestamp }));
+                
+                // Load and display the decrypted content
+                const decrypted = await this.loadNotes();
+                if (decrypted !== null) {
+                    document.getElementById('noteContent').value = decrypted;
+                }
+                
+                this.showStatus('📂 Import successful! File decrypted with your YubiKey.', 'success');
+                return true;
+            } catch (err) {
+                this.showStatus(`❌ Import failed: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        lock() {
+            this.currentKey = null;
+            document.getElementById('noteContent').value = '';
+            document.getElementById('notesSection').classList.add('hidden');
+            document.getElementById('authSection').classList.remove('hidden');
+            this.updateKeyStatus();
+            this.showStatus('🔒 Locked. Use your YubiKey to unlock again.', 'info');
+        }
+        
+        async unlockAndShow() {
+            const key = await this.authenticateWithYubiKey();
+            if (key) {
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('notesSection').classList.remove('hidden');
+                
+                const notes = await this.loadNotes();
+                const textarea = document.getElementById('noteContent');
+                if (textarea) {
+                    textarea.value = (notes !== null && notes !== undefined) ? notes : '';
+                }
+                this.updateKeyStatus();
+            }
+        }
+    }
+
+    // Initialize the app when DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', () => {
+        const app = new YubiKeyEncryptedNotes();
+        
+        // Get elements safely
+        const registerBtn = document.getElementById('registerBtn');
+        const loginBtn = document.getElementById('loginBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const importBtn = document.getElementById('importBtn');
+        const lockBtn = document.getElementById('lockBtn');
+        const fileInput = document.getElementById('fileInput');
+        
+        if (registerBtn) {
+            registerBtn.addEventListener('click', () => app.registerYubiKey());
+        }
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => app.unlockAndShow());
+        }
+        
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async () => {
+                const textarea = document.getElementById('noteContent');
+                if (textarea) {
+                    await app.saveNotes(textarea.value);
+                }
+            });
+        }
+        
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => app.exportToFile());
+        }
+        
+        if (importBtn && fileInput) {
+            importBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', async (e) => {
+                if (e.target.files && e.target.files[0]) {
+                    await app.importFromFile(e.target.files[0]);
+                    fileInput.value = ''; // Reset
+                }
+            });
+        }
+        
+        if (lockBtn) {
+            lockBtn.addEventListener('click', () => app.lock());
+        }
+        
+        // Log to console for debugging
+        console.log('YubiKey Notes App Ready - Use a modern browser with WebAuthn support');
+        console.log('Chrome, Edge, or Firefox required. Safari works partially.');
+    });
+</script>
+</body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
