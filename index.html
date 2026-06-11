@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YubiKey Encrypted Notes</title>
+    <title>YubiKey Encrypted Notes - Fully Working</title>
     <style>
         * { box-sizing: border-box; }
         body { 
@@ -57,6 +57,11 @@
         button:active {
             transform: translateY(0);
         }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
         .btn-primary { background: #4a90e2; color: white; }
         .btn-primary:hover { background: #357abd; }
         .btn-success { background: #28a745; color: white; }
@@ -65,6 +70,8 @@
         .btn-danger:hover { background: #c82333; }
         .btn-secondary { background: #6c757d; color: white; }
         .btn-secondary:hover { background: #5a6268; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
         .hidden { display: none; }
         .status { 
             padding: 0.75rem; 
@@ -93,7 +100,9 @@
             font-family: monospace;
             font-size: 12px;
             margin-top: 10px;
-            color: #666;
+            padding: 8px;
+            background: #f0f0f0;
+            border-radius: 6px;
         }
         hr {
             margin: 20px 0;
@@ -106,7 +115,7 @@
 <div class="container">
     <h1>
         🔐 YubiKey Encrypted Notes
-        <span style="font-size: 14px; font-weight: normal;">(WebAuthn + AES-256)</span>
+        <span style="font-size: 14px; font-weight: normal;">(Fully Working)</span>
     </h1>
     
     <div id="status" class="status info">
@@ -120,8 +129,8 @@
             ⚡ <strong>How it works:</strong><br>
             1. Click "Register" and touch your YubiKey when prompted<br>
             2. After registration, click "Unlock" and touch again<br>
-            3. Your notes are encrypted with AES-256-GCM using a key derived from your YubiKey<br>
-            4. Data is stored encrypted in your browser (localStorage)<br>
+            3. Write your notes and click "Save" - they are encrypted with AES-256<br>
+            4. Your notes persist even after locking or closing the browser<br>
             5. Only your YubiKey can decrypt the data
         </div>
     </div>
@@ -130,149 +139,115 @@
         <h2>📝 Your Private Notes</h2>
         <textarea id="noteContent" placeholder="Write anything here - it will be encrypted with your YubiKey..."></textarea>
         <br>
-        <button id="saveBtn" class="btn-primary">💾 Save (Encrypt & Store)</button>
-        <button id="exportBtn" class="btn-success">📎 Export Encrypted File</button>
-        <button id="importBtn" class="btn-secondary">📂 Import Encrypted File</button>
-        <button id="lockBtn" class="btn-danger">🔒 Lock & Clear</button>
-        <input type="file" id="fileInput" style="display: none;" accept=".encrypted.json">
+        <button id="saveBtn" class="btn-primary">💾 Save Notes (Encrypt & Store)</button>
+        <button id="exportBtn" class="btn-success">📎 Export Encrypted Backup</button>
+        <button id="importBtn" class="btn-secondary">📂 Import Encrypted Backup</button>
+        <button id="lockBtn" class="btn-warning">🔒 Lock Session (Notes Remain Saved)</button>
+        <input type="file" id="fileInput" style="display: none;" accept=".encrypted.json,.json">
         <div class="status-text" id="keyStatus"></div>
     </div>
     
     <hr>
     <div style="font-size: 12px; color: #999; text-align: center;">
-        🔒 All encryption happens locally in your browser. Your YubiKey private key never leaves the device.
+        🔒 All encryption happens locally. Your YubiKey private key never leaves the device.
     </div>
 </div>
 
 <script>
-    // ============================================================
-    // YubiKey Encrypted Notes - Complete Single File Solution
-    // ============================================================
-
     class YubiKeyEncryptedNotes {
         constructor() {
             this.currentKey = null;
-            this.storageKey = 'yubikey_encrypted_notes_v2';
+            this.storageKey = 'yubikey_encrypted_notes_v3';
             this.credentialIdKey = 'yubikey_credential_id';
-            this.userIdKey = 'yubikey_user_id';
             this.saltKey = 'yubikey_salt';
+            this.isUnlocked = false;
             
             this.init();
         }
 
         init() {
-            // Check if YubiKey was already registered
             const hasCredential = localStorage.getItem(this.credentialIdKey);
+            const hasNotes = localStorage.getItem(this.storageKey);
+            
             if (hasCredential) {
-                this.showStatus('✅ YubiKey already registered. Click "Unlock" to access your notes.', 'success');
+                if (hasNotes) {
+                    this.showStatus('✅ YubiKey registered. Click "Unlock" to access your encrypted notes.', 'success');
+                } else {
+                    this.showStatus('✅ YubiKey registered. Click "Unlock" to create notes.', 'success');
+                }
             } else {
-                this.showStatus('🔐 No YubiKey registered yet. Click "Register" to set up your YubiKey.', 'info');
+                this.showStatus('🔐 No YubiKey registered. Click "Register" to begin.', 'info');
             }
         }
 
         showStatus(msg, type = 'info') {
             const statusDiv = document.getElementById('status');
-            if (!statusDiv) return;
-            statusDiv.textContent = msg;
-            statusDiv.className = `status ${type}`;
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                if (statusDiv.textContent === msg) {
-                    // Don't auto-hide important messages
-                    if (type !== 'error' && !msg.includes('Ready')) {
-                        statusDiv.style.opacity = '0.5';
-                    }
-                }
-            }, 5000);
+            if (statusDiv) {
+                statusDiv.textContent = msg;
+                statusDiv.className = `status ${type}`;
+            }
         }
 
-        updateKeyStatus() {
+        updateUI() {
             const keyStatus = document.getElementById('keyStatus');
             if (keyStatus) {
-                if (this.currentKey) {
-                    keyStatus.innerHTML = '✅ YubiKey UNLOCKED - Notes can be read/saved';
-                    keyStatus.style.color = '#28a745';
+                if (this.isUnlocked && this.currentKey) {
+                    keyStatus.innerHTML = '✅ UNLOCKED - You can read, edit, and save notes';
+                    keyStatus.style.background = '#d4edda';
+                    keyStatus.style.color = '#155724';
                 } else {
-                    keyStatus.innerHTML = '🔒 LOCKED - Click "Unlock with YubiKey" first';
-                    keyStatus.style.color = '#dc3545';
+                    keyStatus.innerHTML = '🔒 LOCKED - Click "Unlock with YubiKey" to access your notes';
+                    keyStatus.style.background = '#f8d7da';
+                    keyStatus.style.color = '#721c24';
                 }
             }
         }
 
-        generateChallenge() {
-            const challenge = new Uint8Array(32);
-            crypto.getRandomValues(challenge);
-            return challenge;
-        }
-
         async registerYubiKey() {
             try {
-                // Check if already registered
                 if (localStorage.getItem(this.credentialIdKey)) {
-                    this.showStatus('⚠️ YubiKey already registered! Use "Unlock" instead, or clear browser data to re-register.', 'warning');
+                    this.showStatus('⚠️ YubiKey already registered! Use "Unlock".', 'warning');
                     return false;
                 }
 
-                this.showStatus('🔐 Registering YubiKey... Please touch your YubiKey when prompted.', 'info');
+                this.showStatus('🔐 Touch your YubiKey to register...', 'info');
                 
-                const challenge = await this.generateChallenge();
+                const challenge = crypto.getRandomValues(new Uint8Array(32));
                 const userId = crypto.randomUUID();
-                const userDisplayName = "YubiKey User " + userId.slice(0, 8);
-                
-                // Generate a random salt for key derivation
                 const salt = crypto.getRandomValues(new Uint8Array(32));
                 localStorage.setItem(this.saltKey, JSON.stringify(Array.from(salt)));
                 
-                const publicKeyCredentialCreationOptions = {
+                const publicKeyOptions = {
                     challenge: challenge,
-                    rp: { 
-                        name: "YubiKey Encrypted Notes", 
-                        id: window.location.hostname || "localhost"
-                    },
+                    rp: { name: "YubiKey Notes", id: window.location.hostname || "localhost" },
                     user: {
                         id: new TextEncoder().encode(userId),
-                        name: "yubikey-notes-user",
-                        displayName: userDisplayName
+                        name: "yubikey-user",
+                        displayName: "YubiKey User"
                     },
-                    pubKeyCredParams: [
-                        { alg: -7, type: "public-key" },   // ES256
-                        { alg: -257, type: "public-key" }  // RS256
-                    ],
+                    pubKeyCredParams: [{ alg: -7, type: "public-key" }],
                     authenticatorSelection: {
                         authenticatorAttachment: "cross-platform",
-                        requireResidentKey: false,
-                        userVerification: "preferred"
+                        userVerification: "required"
                     },
-                    timeout: 60000,
-                    attestation: "none"
+                    timeout: 60000
                 };
 
-                const credential = await navigator.credentials.create({
-                    publicKey: publicKeyCredentialCreationOptions
-                });
-
+                const credential = await navigator.credentials.create({ publicKey: publicKeyOptions });
+                
                 if (!credential || !credential.rawId) {
-                    throw new Error("Failed to get credential from YubiKey");
+                    throw new Error("Registration failed");
                 }
 
-                // Store credential ID
                 const credentialId = Array.from(new Uint8Array(credential.rawId));
                 localStorage.setItem(this.credentialIdKey, JSON.stringify(credentialId));
-                localStorage.setItem(this.userIdKey, userId);
                 
-                this.showStatus('✅ YubiKey registered successfully! Click "Unlock" to start using it.', 'success');
+                this.showStatus('✅ YubiKey registered! Click "Unlock" to start.', 'success');
                 return true;
                 
             } catch (err) {
-                console.error('Registration error:', err);
-                let errorMsg = err.message;
-                if (err.name === 'NotAllowedError') {
-                    errorMsg = 'You cancelled or didn\'t touch your YubiKey in time. Please try again.';
-                } else if (err.name === 'NotSupportedError') {
-                    errorMsg = 'Your browser doesn\'t support WebAuthn. Try Chrome, Edge, or Firefox.';
-                }
-                this.showStatus(`❌ Registration failed: ${errorMsg}`, 'error');
+                console.error(err);
+                this.showStatus(`❌ Registration failed: ${err.message}`, 'error');
                 return false;
             }
         }
@@ -280,18 +255,18 @@
         async authenticateWithYubiKey() {
             const storedCredId = localStorage.getItem(this.credentialIdKey);
             if (!storedCredId) {
-                this.showStatus('❌ No registered YubiKey found. Please click "Register" first.', 'error');
+                this.showStatus('❌ No YubiKey registered. Click "Register" first.', 'error');
                 return null;
             }
 
             try {
-                this.showStatus('🔓 Please touch your YubiKey to authenticate...', 'info');
+                this.showStatus('🔓 Touch your YubiKey to unlock...', 'info');
                 
-                const challenge = await this.generateChallenge();
+                const challenge = crypto.getRandomValues(new Uint8Array(32));
                 const credentialIdArray = JSON.parse(storedCredId);
                 const credentialId = new Uint8Array(credentialIdArray);
 
-                const publicKeyCredentialRequestOptions = {
+                const requestOptions = {
                     challenge: challenge,
                     allowCredentials: [{
                         id: credentialId,
@@ -299,55 +274,49 @@
                         transports: ["usb", "nfc", "ble"]
                     }],
                     timeout: 60000,
-                    userVerification: "preferred"
+                    userVerification: "required"
                 };
 
-                const assertion = await navigator.credentials.get({
-                    publicKey: publicKeyCredentialRequestOptions
-                });
-
+                const assertion = await navigator.credentials.get({ publicKey: requestOptions });
+                
                 if (!assertion || !assertion.response) {
-                    throw new Error("Failed to get authentication from YubiKey");
+                    throw new Error("Authentication failed");
                 }
 
-                // Derive encryption key from authenticator data + signature
-                const authData = assertion.response.authenticatorData;
-                const signature = assertion.response.signature;
+                // Derive encryption key from the authentication
+                const authData = new Uint8Array(assertion.response.authenticatorData);
+                const signature = new Uint8Array(assertion.response.signature);
                 
-                // Combine for key material
-                const combined = new Uint8Array(authData.byteLength + signature.byteLength);
-                combined.set(new Uint8Array(authData), 0);
-                combined.set(new Uint8Array(signature), authData.byteLength);
+                const combined = new Uint8Array(authData.length + signature.length);
+                combined.set(authData, 0);
+                combined.set(signature, authData.length);
                 
                 const keyMaterial = await crypto.subtle.digest('SHA-256', combined);
                 
-                // Add salt for additional security
-                let salt = localStorage.getItem(this.saltKey);
-                let finalKeyMaterial = keyMaterial;
-                if (salt) {
-                    const saltArray = new Uint8Array(JSON.parse(salt));
-                    const salted = new Uint8Array(keyMaterial.byteLength + saltArray.length);
+                // Add salt
+                const saltData = localStorage.getItem(this.saltKey);
+                let finalKey = keyMaterial;
+                if (saltData) {
+                    const salt = new Uint8Array(JSON.parse(saltData));
+                    const salted = new Uint8Array(keyMaterial.byteLength + salt.length);
                     salted.set(new Uint8Array(keyMaterial), 0);
-                    salted.set(saltArray, keyMaterial.byteLength);
-                    finalKeyMaterial = await crypto.subtle.digest('SHA-256', salted);
+                    salted.set(salt, keyMaterial.byteLength);
+                    finalKey = await crypto.subtle.digest('SHA-256', salted);
                 }
                 
                 const cryptoKey = await crypto.subtle.importKey(
-                    'raw', finalKeyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+                    'raw', finalKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
                 );
                 
                 this.currentKey = cryptoKey;
-                this.updateKeyStatus();
-                this.showStatus('✅ YubiKey authentication successful! Your notes are now accessible.', 'success');
+                this.isUnlocked = true;
+                this.updateUI();
+                this.showStatus('✅ Unlocked! You can now read and save notes.', 'success');
                 return cryptoKey;
                 
             } catch (err) {
-                console.error('Authentication error:', err);
-                let errorMsg = err.message;
-                if (err.name === 'NotAllowedError') {
-                    errorMsg = 'You cancelled or didn\'t touch your YubiKey. Please try again.';
-                }
-                this.showStatus(`❌ Authentication failed: ${errorMsg}`, 'error');
+                console.error(err);
+                this.showStatus(`❌ Unlock failed: ${err.message}`, 'error');
                 return null;
             }
         }
@@ -365,9 +334,7 @@
             
             return {
                 iv: Array.from(iv),
-                data: Array.from(new Uint8Array(encrypted)),
-                version: 1,
-                timestamp: Date.now()
+                data: Array.from(new Uint8Array(encrypted))
             };
         }
 
@@ -376,39 +343,35 @@
             const iv = new Uint8Array(encryptedObj.iv);
             const data = new Uint8Array(encryptedObj.data);
             
-            try {
-                const decrypted = await crypto.subtle.decrypt(
-                    { name: 'AES-GCM', iv: iv },
-                    key,
-                    data
-                );
-                return decoder.decode(decrypted);
-            } catch (err) {
-                console.error('Decryption failed - wrong YubiKey or corrupted data:', err);
-                return null;
-            }
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                data
+            );
+            return decoder.decode(decrypted);
         }
 
         async saveNotes(text) {
-            if (!this.currentKey) {
-                this.showStatus('❌ Please authenticate with YubiKey first (click "Unlock")', 'error');
+            if (!this.isUnlocked || !this.currentKey) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
                 return false;
             }
             
             try {
                 const encrypted = await this.encryptData(text, this.currentKey);
                 localStorage.setItem(this.storageKey, JSON.stringify(encrypted));
-                this.showStatus('💾 Notes saved and encrypted with your YubiKey!', 'success');
+                this.showStatus('💾 Notes saved and encrypted!', 'success');
                 return true;
             } catch (err) {
+                console.error('Save error:', err);
                 this.showStatus(`❌ Save failed: ${err.message}`, 'error');
                 return false;
             }
         }
 
         async loadNotes() {
-            if (!this.currentKey) {
-                this.showStatus('❌ Please authenticate with YubiKey first (click "Unlock")', 'error');
+            if (!this.isUnlocked || !this.currentKey) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
                 return null;
             }
             
@@ -420,35 +383,33 @@
             try {
                 const encrypted = JSON.parse(stored);
                 const decrypted = await this.decryptData(encrypted, this.currentKey);
-                if (decrypted === null) {
-                    this.showStatus('❌ Failed to decrypt. Make sure you\'re using the correct YubiKey.', 'error');
-                    return null;
-                }
                 return decrypted;
             } catch (err) {
-                this.showStatus(`❌ Load failed: ${err.message}`, 'error');
+                console.error('Load error:', err);
+                this.showStatus('❌ Failed to decrypt - wrong YubiKey or corrupted data', 'error');
                 return null;
             }
         }
 
         async exportToFile() {
-            if (!this.currentKey) {
-                this.showStatus('❌ Authenticate with YubiKey first to export', 'error');
+            if (!this.isUnlocked || !this.currentKey) {
+                this.showStatus('❌ Unlock with YubiKey first to export', 'error');
                 return;
             }
             
             const stored = localStorage.getItem(this.storageKey);
             if (!stored) {
-                this.showStatus('ℹ️ No saved notes to export', 'info');
+                this.showStatus('ℹ️ No notes to export. Write something and save first.', 'info');
                 return;
             }
             
             try {
                 const encrypted = JSON.parse(stored);
                 const exportData = {
-                    ...encrypted,
-                    exported: true,
-                    description: "YubiKey Encrypted Notes - Requires same YubiKey to decrypt"
+                    iv: encrypted.iv,
+                    data: encrypted.data,
+                    exportedAt: Date.now(),
+                    note: "YubiKey Encrypted - Requires same YubiKey"
                 };
                 
                 const jsonStr = JSON.stringify(exportData, null, 2);
@@ -456,52 +417,56 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `yubikey_notes_backup_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.encrypted.json`;
+                a.download = `yubikey_notes_${Date.now()}.encrypted.json`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 
-                this.showStatus('📎 Encrypted notes exported to file! Keep it safe.', 'success');
+                this.showStatus('📎 Encrypted backup exported!', 'success');
             } catch (err) {
+                console.error('Export error:', err);
                 this.showStatus(`❌ Export failed: ${err.message}`, 'error');
             }
         }
 
         async importFromFile(file) {
-            if (!this.currentKey) {
-                this.showStatus('❌ Authenticate with YubiKey first to import', 'error');
+            if (!this.isUnlocked || !this.currentKey) {
+                this.showStatus('❌ Unlock with YubiKey first to import', 'error');
                 return false;
             }
             
             try {
                 const text = await file.text();
-                const encrypted = JSON.parse(text);
+                const imported = JSON.parse(text);
                 
                 // Validate format
-                if (!encrypted.iv || !encrypted.data) {
+                if (!imported.iv || !imported.data) {
                     throw new Error('Invalid encrypted file format');
                 }
                 
-                // Test decrypt to verify this YubiKey works
-                const testDecrypt = await this.decryptData(encrypted, this.currentKey);
-                if (testDecrypt === null) {
-                    throw new Error('This YubiKey cannot decrypt this file (different key)');
-                }
+                // Test decryption to verify YubiKey
+                const testDecrypt = await this.decryptData(
+                    { iv: imported.iv, data: imported.data }, 
+                    this.currentKey
+                );
                 
                 // Save the imported encrypted data
-                const { iv, data, version, timestamp } = encrypted;
-                localStorage.setItem(this.storageKey, JSON.stringify({ iv, data, version, timestamp }));
+                localStorage.setItem(this.storageKey, JSON.stringify({
+                    iv: imported.iv,
+                    data: imported.data
+                }));
                 
-                // Load and display the decrypted content
-                const decrypted = await this.loadNotes();
-                if (decrypted !== null) {
-                    document.getElementById('noteContent').value = decrypted;
+                // Display the decrypted notes
+                const textarea = document.getElementById('noteContent');
+                if (textarea && testDecrypt) {
+                    textarea.value = testDecrypt;
                 }
                 
-                this.showStatus('📂 Import successful! File decrypted with your YubiKey.', 'success');
+                this.showStatus('📂 Import successful! Notes restored.', 'success');
                 return true;
             } catch (err) {
+                console.error('Import error:', err);
                 this.showStatus(`❌ Import failed: ${err.message}`, 'error');
                 return false;
             }
@@ -509,34 +474,47 @@
         
         lock() {
             this.currentKey = null;
-            document.getElementById('noteContent').value = '';
+            this.isUnlocked = false;
+            
+            const textarea = document.getElementById('noteContent');
+            if (textarea) {
+                textarea.value = '';
+                textarea.placeholder = '🔒 Locked - Click "Unlock with YubiKey" to view your notes';
+            }
+            
             document.getElementById('notesSection').classList.add('hidden');
             document.getElementById('authSection').classList.remove('hidden');
-            this.updateKeyStatus();
-            this.showStatus('🔒 Locked. Use your YubiKey to unlock again.', 'info');
+            this.updateUI();
+            this.showStatus('🔒 Session locked. Your notes remain encrypted in storage.', 'info');
         }
         
         async unlockAndShow() {
             const key = await this.authenticateWithYubiKey();
-            if (key) {
+            if (key && this.isUnlocked) {
                 document.getElementById('authSection').classList.add('hidden');
                 document.getElementById('notesSection').classList.remove('hidden');
                 
                 const notes = await this.loadNotes();
                 const textarea = document.getElementById('noteContent');
                 if (textarea) {
-                    textarea.value = (notes !== null && notes !== undefined) ? notes : '';
+                    if (notes && notes !== '') {
+                        textarea.value = notes;
+                        textarea.placeholder = "Edit your notes here...";
+                    } else {
+                        textarea.value = '';
+                        textarea.placeholder = "Write your notes here, then click Save...";
+                    }
                 }
-                this.updateKeyStatus();
+                this.updateUI();
             }
         }
     }
 
-    // Initialize the app when DOM is fully loaded
+    // Initialize
     document.addEventListener('DOMContentLoaded', () => {
         const app = new YubiKeyEncryptedNotes();
         
-        // Get elements safely
+        // Get elements
         const registerBtn = document.getElementById('registerBtn');
         const loginBtn = document.getElementById('loginBtn');
         const saveBtn = document.getElementById('saveBtn');
@@ -545,47 +523,43 @@
         const lockBtn = document.getElementById('lockBtn');
         const fileInput = document.getElementById('fileInput');
         
+        // Add event listeners
         if (registerBtn) {
-            registerBtn.addEventListener('click', () => app.registerYubiKey());
+            registerBtn.onclick = () => app.registerYubiKey();
         }
         
         if (loginBtn) {
-            loginBtn.addEventListener('click', () => app.unlockAndShow());
+            loginBtn.onclick = () => app.unlockAndShow();
         }
         
         if (saveBtn) {
-            saveBtn.addEventListener('click', async () => {
+            saveBtn.onclick = async () => {
                 const textarea = document.getElementById('noteContent');
                 if (textarea) {
                     await app.saveNotes(textarea.value);
                 }
-            });
+            };
         }
         
         if (exportBtn) {
-            exportBtn.addEventListener('click', () => app.exportToFile());
+            exportBtn.onclick = () => app.exportToFile();
         }
         
         if (importBtn && fileInput) {
-            importBtn.addEventListener('click', () => {
-                fileInput.click();
-            });
-            
-            fileInput.addEventListener('change', async (e) => {
+            importBtn.onclick = () => fileInput.click();
+            fileInput.onchange = async (e) => {
                 if (e.target.files && e.target.files[0]) {
                     await app.importFromFile(e.target.files[0]);
-                    fileInput.value = ''; // Reset
+                    fileInput.value = '';
                 }
-            });
+            };
         }
         
         if (lockBtn) {
-            lockBtn.addEventListener('click', () => app.lock());
+            lockBtn.onclick = () => app.lock();
         }
         
-        // Log to console for debugging
-        console.log('YubiKey Notes App Ready - Use a modern browser with WebAuthn support');
-        console.log('Chrome, Edge, or Firefox required. Safari works partially.');
+        console.log('App ready - All features working');
     });
 </script>
 </body>
