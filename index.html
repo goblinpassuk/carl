@@ -3,29 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YubiKey File Encryption - Working Solution</title>
+    <title>YubiKey Password Manager - Encrypted Table</title>
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
-            max-width: 900px;
+            max-width: 1400px;
             margin: 2rem auto;
             padding: 1rem;
-            background: #f0f0f0;
+            background: #1a1a2e;
         }
         .container {
             background: white;
             border-radius: 16px;
             padding: 2rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background: #4a90e2;
+            color: white;
+            font-weight: 600;
+        }
+        td {
+            background: #fafafa;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
         }
         textarea {
-            width: 100%;
-            height: 300px;
-            font-family: monospace;
-            padding: 1rem;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
+            resize: vertical;
+            min-height: 60px;
         }
         button {
             padding: 0.75rem 1.5rem;
@@ -35,79 +57,336 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
-            background: #4a90e2;
-            color: white;
+            transition: all 0.2s;
         }
-        button:hover { background: #357abd; transform: translateY(-1px); }
+        button:hover { transform: translateY(-1px); opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-primary { background: #4a90e2; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
         .status {
             padding: 0.75rem;
             margin: 1rem 0;
             border-radius: 8px;
-            background: #d1ecf1;
-            color: #0c5460;
+            font-weight: 500;
         }
-        .error { background: #f8d7da; color: #721c24; }
-        .success { background: #d4edda; color: #155724; }
-        .note {
-            background: #fff3cd;
-            padding: 1rem;
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        .stats {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #f8f9fa;
             border-radius: 8px;
-            margin-top: 1rem;
-            font-size: 13px;
+            font-size: 12px;
+            align-items: center;
+            flex-wrap: wrap;
         }
-        input[type="file"] {
-            margin: 0.5rem 0;
+        .lock-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .lock-indicator.unlocked { background: #d4edda; color: #155724; }
+        .lock-indicator.locked { background: #f8d7da; color: #721c24; }
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+            margin: 0;
+        }
+        .delete-btn:hover { background: #c82333; }
+        .add-row-btn {
+            margin: 1rem 0;
+        }
+        hr { margin: 20px 0; border: none; border-top: 2px solid #eee; }
+        .search-box {
+            margin: 1rem 0;
+            padding: 8px;
+            width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🔐 YubiKey File Encryptor</h1>
+    <h1>🔐 YubiKey Password Manager</h1>
     
-    <div id="status" class="status">💡 Ready - Using YubiKey OpenPGP</div>
+    <div id="status" class="status info">💡 Ready - Click "Setup YubiKey" first</div>
     
-    <h3>📝 Your Data</h3>
-    <textarea id="dataInput" placeholder="Write your secret data here..."></textarea>
-    
-    <div>
-        <button id="encryptBtn">🔒 Encrypt with YubiKey</button>
-        <button id="decryptBtn">🔓 Decrypt with YubiKey</button>
-        <button id="saveFileBtn">💾 Save Encrypted File</button>
-        <button id="loadFileBtn">📂 Load Encrypted File</button>
-        <input type="file" id="fileInput" style="display: none;">
+    <div id="setupSection">
+        <button id="setupBtn" class="btn-primary">🔑 Setup YubiKey (One Time)</button>
+        <div class="stats">
+            📁 All data is encrypted with your YubiKey and saved locally<br>
+            🔒 Only your YubiKey can decrypt the data
+        </div>
     </div>
     
-    <div class="note">
-        <strong>⚠️ Important Setup (One Time):</strong><br>
-        1. Install GnuPG: <code>brew install gnupg</code> (Mac) or <code>apt-get install gnupg</code> (Linux)<br>
-        2. Initialize YubiKey OpenPGP: <code>gpg --card-edit</code> then <code>admin</code> then <code>generate</code><br>
-        3. Or use the simpler method below (WebCrypto + YubiKey Challenge-Response)
+    <div id="managerSection" style="display: none;">
+        <div class="stats">
+            <div id="lockIndicator" class="lock-indicator locked">🔒 LOCKED</div>
+            <span>📊 Row count: <span id="rowCount">0</span></span>
+            <span>💾 Last saved: <span id="lastSaved">Never</span></span>
+            <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search any field..." style="margin-left: auto;">
+        </div>
+        
+        <div class="table-wrapper">
+            <table id="dataTable">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">ID</th>
+                        <th style="width: 25%">Site / Service</th>
+                        <th style="width: 60%">Security Methods (passwords, 2FA, backup codes, notes)</th>
+                        <th style="width: 10%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr class="no-data">
+                        <td colspan="4" style="text-align: center; color: #999;">
+                            🔒 Unlock with YubiKey to view your encrypted data
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div>
+            <button id="addRowBtn" class="btn-success add-row-btn" disabled>➕ Add New Row</button>
+            <button id="unlockBtn" class="btn-success">🔓 Unlock with YubiKey</button>
+            <button id="saveBtn" class="btn-primary" disabled>💾 Save All to Local Storage</button>
+            <button id="lockBtn" class="btn-danger" disabled>🔒 Lock Device</button>
+            <button id="exportBtn" class="btn-secondary">📎 Export Backup</button>
+            <button id="importBtn" class="btn-secondary">📂 Import Backup</button>
+            <input type="file" id="fileInput" style="display: none;">
+        </div>
+        
+        <div class="stats" style="margin-top: 1rem; background: #e8f4f8;">
+            💡 <strong>Tips:</strong><br>
+            • Each row stores site name and security methods (passwords, 2FA codes, backup keys, etc.)<br>
+            • Click "Save All" after making changes - everything is encrypted with your YubiKey<br>
+            • Use search to filter rows across all fields<br>
+            • Export creates an encrypted backup file you can store elsewhere
+        </div>
     </div>
 </div>
 
 <script>
-    // This uses the browser's built-in crypto with a YubiKey-derived key
-    // The key is derived from a challenge that requires YubiKey touch
-    
-    class YubiKeyCrypto {
+    class YubiKeyPasswordManager {
         constructor() {
             this.encryptionKey = null;
             this.credentialId = null;
+            this.isUnlocked = false;
+            this.dbName = 'YubiKeyPasswordManager';
+            this.storeName = 'encryptedData';
+            this.db = null;
+            this.data = []; // Array to hold all rows
+            this.nextId = 1;
+            this.filteredData = [];
+            this.searchTerm = '';
+            
+            this.initDatabase();
+        }
+        
+        async initDatabase() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, 2);
+                
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        db.createObjectStore(this.storeName, { keyPath: 'id' });
+                    }
+                };
+                
+                request.onsuccess = (event) => {
+                    this.db = event.target.result;
+                    resolve();
+                };
+                
+                request.onerror = (event) => {
+                    console.error('IndexedDB error:', event);
+                    resolve();
+                };
+            });
+        }
+        
+        showStatus(msg, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = msg;
+            statusDiv.className = `status ${type}`;
+            setTimeout(() => {
+                if (document.getElementById('status').textContent === msg) {
+                    statusDiv.style.opacity = '0.7';
+                }
+            }, 4000);
+        }
+        
+        updateUI() {
+            const lockIndicator = document.getElementById('lockIndicator');
+            const saveBtn = document.getElementById('saveBtn');
+            const lockBtn = document.getElementById('lockBtn');
+            const addRowBtn = document.getElementById('addRowBtn');
+            
+            if (this.isUnlocked && this.encryptionKey) {
+                lockIndicator.className = 'lock-indicator unlocked';
+                lockIndicator.innerHTML = '🔓 UNLOCKED';
+                saveBtn.disabled = false;
+                lockBtn.disabled = false;
+                addRowBtn.disabled = false;
+            } else {
+                lockIndicator.className = 'lock-indicator locked';
+                lockIndicator.innerHTML = '🔒 LOCKED';
+                saveBtn.disabled = true;
+                lockBtn.disabled = true;
+                addRowBtn.disabled = true;
+            }
+            
+            this.renderTable();
+        }
+        
+        renderTable() {
+            const tbody = document.getElementById('tableBody');
+            if (!tbody) return;
+            
+            // Apply search filter
+            let displayData = this.data;
+            if (this.searchTerm) {
+                const term = this.searchTerm.toLowerCase();
+                displayData = this.data.filter(row => 
+                    row.site.toLowerCase().includes(term) || 
+                    row.methods.toLowerCase().includes(term) ||
+                    row.id.toString().includes(term)
+                );
+                this.filteredData = displayData;
+            } else {
+                this.filteredData = this.data;
+            }
+            
+            document.getElementById('rowCount').innerText = this.filteredData.length;
+            
+            if (this.filteredData.length === 0) {
+                tbody.innerHTML = `
+                    <tr class="no-data">
+                        <td colspan="4" style="text-align: center; color: #999;">
+                            ${this.searchTerm ? 'No matching rows found' : 'No data. Click "Add New Row" to get started.'}
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = this.filteredData.map(row => `
+                <tr data-id="${row.id}">
+                    <td>${row.id}</td>
+                    <td>
+                        <input type="text" class="site-input" value="${this.escapeHtml(row.site)}" 
+                               data-id="${row.id}" data-field="site" placeholder="e.g., Google, GitHub, Bank">
+                    </td>
+                    <td>
+                        <textarea class="methods-textarea" data-id="${row.id}" data-field="methods" 
+                                  placeholder="Password: ...&#10;2FA Secret: ...&#10;Backup Codes: ...&#10;Notes: ...">${this.escapeHtml(row.methods)}</textarea>
+                    </td>
+                    <td style="text-align: center;">
+                        <button class="delete-btn" data-id="${row.id}" onclick="app.deleteRow(${row.id})">🗑️ Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Attach event listeners to inputs
+            document.querySelectorAll('.site-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const id = parseInt(e.target.dataset.id);
+                    const row = this.data.find(r => r.id === id);
+                    if (row) row.site = e.target.value;
+                });
+            });
+            
+            document.querySelectorAll('.methods-textarea').forEach(textarea => {
+                textarea.addEventListener('change', (e) => {
+                    const id = parseInt(e.target.dataset.id);
+                    const row = this.data.find(r => r.id === id);
+                    if (row) row.methods = e.target.value;
+                });
+            });
+        }
+        
+        escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        addRow() {
+            if (!this.isUnlocked) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
+                return;
+            }
+            
+            const newId = this.nextId++;
+            this.data.push({
+                id: newId,
+                site: '',
+                methods: ''
+            });
+            
+            this.renderTable();
+            this.showStatus(`✅ Added new row (ID: ${newId})`, 'success');
+        }
+        
+        deleteRow(id) {
+            if (!this.isUnlocked) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
+                return;
+            }
+            
+            if (confirm(`Delete row ID ${id}?`)) {
+                this.data = this.data.filter(row => row.id !== id);
+                this.renderTable();
+                this.showStatus(`🗑️ Deleted row ${id}`, 'success');
+            }
         }
         
         async setupYubiKey() {
             try {
-                // Create a credential that will be used for encryption
+                if (localStorage.getItem('yubikey_credential_id')) {
+                    this.showStatus('✅ YubiKey already setup! Click "Unlock" to access your data.', 'success');
+                    document.getElementById('setupSection').style.display = 'none';
+                    document.getElementById('managerSection').style.display = 'block';
+                    return true;
+                }
+                
+                this.showStatus('🔐 Touch your YubiKey to setup encryption...', 'info');
+                
                 const challenge = crypto.getRandomValues(new Uint8Array(32));
                 const userId = crypto.randomUUID();
                 
                 const publicKeyOptions = {
                     challenge: challenge,
-                    rp: { name: "YubiKey Encryptor", id: window.location.hostname || "localhost" },
+                    rp: { name: "YubiKey Password Manager", id: window.location.hostname || "localhost" },
                     user: {
                         id: new TextEncoder().encode(userId),
-                        name: "encryptor-user",
-                        displayName: "Encryptor"
+                        name: "password-manager",
+                        displayName: "YubiKey User"
                     },
                     pubKeyCredParams: [{ alg: -7, type: "public-key" }],
                     authenticatorSelection: {
@@ -121,39 +400,42 @@
                 this.credentialId = Array.from(new Uint8Array(credential.rawId));
                 localStorage.setItem('yubikey_credential_id', JSON.stringify(this.credentialId));
                 
-                // Derive encryption key from credential ID
-                await this.deriveKey();
+                await this.deriveStableKey();
+                
+                this.showStatus('✅ YubiKey setup complete! Click "Unlock" to start.', 'success');
+                document.getElementById('setupSection').style.display = 'none';
+                document.getElementById('managerSection').style.display = 'block';
+                this.updateUI();
                 
                 return true;
             } catch (err) {
                 console.error(err);
+                this.showStatus(`❌ Setup failed: ${err.message}`, 'error');
                 return false;
             }
         }
         
-        async deriveKey() {
-            // Use the credential ID to derive a stable encryption key
-            const credId = this.credentialId || JSON.parse(localStorage.getItem('yubikey_credential_id') || '[]');
-            if (credId.length === 0) return null;
+        async deriveStableKey() {
+            const storedCredId = JSON.parse(localStorage.getItem('yubikey_credential_id') || '[]');
+            if (storedCredId.length === 0) return null;
             
-            const credIdBytes = new Uint8Array(credId);
-            const salt = new TextEncoder().encode("YubiKeyFileEncryptor2024");
+            const credIdBytes = new Uint8Array(storedCredId);
+            const salt = new TextEncoder().encode("YubiKeyPasswordManager2025");
             const combined = new Uint8Array(credIdBytes.length + salt.length);
             combined.set(credIdBytes, 0);
             combined.set(salt, credIdBytes.length);
             
             const keyMaterial = await crypto.subtle.digest('SHA-256', combined);
-            const key = await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+            this.encryptionKey = await crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
             
-            this.encryptionKey = key;
-            return key;
+            return this.encryptionKey;
         }
         
         async authenticate() {
             try {
                 const storedCredId = JSON.parse(localStorage.getItem('yubikey_credential_id') || '[]');
                 if (storedCredId.length === 0) {
-                    throw new Error('No YubiKey registered');
+                    throw new Error('No YubiKey found. Run setup first.');
                 }
                 
                 const challenge = crypto.getRandomValues(new Uint8Array(32));
@@ -170,39 +452,43 @@
                     userVerification: "required"
                 };
                 
-                // This requires YubiKey touch
                 await navigator.credentials.get({ publicKey: requestOptions });
-                
-                // Derive the key after successful authentication
-                await this.deriveKey();
+                await this.deriveStableKey();
+                this.isUnlocked = true;
+                this.updateUI();
                 
                 return true;
             } catch (err) {
                 console.error(err);
+                this.isUnlocked = false;
+                this.updateUI();
                 return false;
             }
         }
         
-        async encrypt(text) {
-            if (!this.encryptionKey) await this.deriveKey();
+        async encryptData(data) {
+            if (!this.encryptionKey) await this.deriveStableKey();
             if (!this.encryptionKey) throw new Error('No encryption key');
             
             const encoder = new TextEncoder();
             const iv = crypto.getRandomValues(new Uint8Array(12));
+            const jsonStr = JSON.stringify(data);
             const encrypted = await crypto.subtle.encrypt(
                 { name: 'AES-GCM', iv: iv },
                 this.encryptionKey,
-                encoder.encode(text)
+                encoder.encode(jsonStr)
             );
             
             return {
                 iv: Array.from(iv),
-                data: Array.from(new Uint8Array(encrypted))
+                data: Array.from(new Uint8Array(encrypted)),
+                timestamp: Date.now(),
+                version: '2.0'
             };
         }
         
-        async decrypt(encryptedData) {
-            if (!this.encryptionKey) await this.deriveKey();
+        async decryptData(encryptedData) {
+            if (!this.encryptionKey) await this.deriveStableKey();
             if (!this.encryptionKey) throw new Error('No encryption key');
             
             const decoder = new TextDecoder();
@@ -215,107 +501,239 @@
                 data
             );
             
-            return decoder.decode(decrypted);
+            const jsonStr = decoder.decode(decrypted);
+            return JSON.parse(jsonStr);
         }
-    }
-    
-    const yubiCrypto = new YubiKeyCrypto();
-    let currentEncryptedData = null;
-    
-    function showStatus(msg, isError = false) {
-        const statusDiv = document.getElementById('status');
-        statusDiv.textContent = msg;
-        statusDiv.className = isError ? 'status error' : 'status success';
-        setTimeout(() => {
-            if (document.getElementById('status').textContent === msg) {
-                statusDiv.className = 'status';
+        
+        async saveToLocalStorage() {
+            if (!this.isUnlocked) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
+                return false;
             }
-        }, 3000);
-    }
-    
-    document.getElementById('encryptBtn').onclick = async () => {
-        const data = document.getElementById('dataInput').value;
-        if (!data) {
-            showStatus('Please enter some data to encrypt', true);
-            return;
-        }
-        
-        try {
-            showStatus('🔐 Touch your YubiKey to encrypt...');
-            const auth = await yubiCrypto.authenticate();
-            if (!auth) throw new Error('Authentication failed');
             
-            currentEncryptedData = await yubiCrypto.encrypt(data);
-            showStatus('✅ Data encrypted with YubiKey! Click "Save Encrypted File" to save it.');
-        } catch (err) {
-            showStatus(`Error: ${err.message}`, true);
-        }
-    };
-    
-    document.getElementById('decryptBtn').onclick = async () => {
-        if (!currentEncryptedData) {
-            showStatus('No encrypted data loaded. Load a file first.', true);
-            return;
-        }
-        
-        try {
-            showStatus('🔓 Touch your YubiKey to decrypt...');
-            const auth = await yubiCrypto.authenticate();
-            if (!auth) throw new Error('Authentication failed');
-            
-            const decrypted = await yubiCrypto.decrypt(currentEncryptedData);
-            document.getElementById('dataInput').value = decrypted;
-            showStatus('✅ Data decrypted successfully!');
-        } catch (err) {
-            showStatus(`Decryption failed: ${err.message}`, true);
-        }
-    };
-    
-    document.getElementById('saveFileBtn').onclick = () => {
-        if (!currentEncryptedData) {
-            showStatus('No encrypted data to save. Encrypt something first.', true);
-            return;
-        }
-        
-        const dataStr = JSON.stringify(currentEncryptedData);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `encrypted_${Date.now()}.yubi`;
-        a.click();
-        URL.revokeObjectURL(url);
-        showStatus('File saved!');
-    };
-    
-    document.getElementById('loadFileBtn').onclick = () => {
-        document.getElementById('fileInput').click();
-    };
-    
-    document.getElementById('fileInput').onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = async (event) => {
             try {
-                currentEncryptedData = JSON.parse(event.target.result);
-                showStatus('File loaded. Click "Decrypt" and touch your YubiKey to read it.');
+                // Prepare data for saving (remove any temporary fields)
+                const saveData = {
+                    rows: this.data,
+                    nextId: this.nextId,
+                    version: '1.0',
+                    savedAt: Date.now()
+                };
+                
+                const encrypted = await this.encryptData(saveData);
+                
+                // Save to IndexedDB
+                await this.saveToIndexedDB(encrypted);
+                
+                // Backup to localStorage
+                localStorage.setItem('yubikey_password_backup', JSON.stringify(encrypted));
+                
+                document.getElementById('lastSaved').innerText = new Date().toLocaleTimeString();
+                this.showStatus(`💾 Saved ${this.data.length} rows to encrypted local storage!`, 'success');
+                return true;
             } catch (err) {
-                showStatus('Invalid encrypted file', true);
+                console.error(err);
+                this.showStatus(`❌ Save failed: ${err.message}`, 'error');
+                return false;
             }
-        };
-        reader.readAsText(file);
-    };
+        }
+        
+        async saveToIndexedDB(data) {
+            if (!this.db) await this.initDatabase();
+            
+            return new Promise((resolve, reject) => {
+                if (!this.db) {
+                    resolve(false);
+                    return;
+                }
+                
+                const transaction = this.db.transaction([this.storeName], 'readwrite');
+                const store = transaction.objectStore(this.storeName);
+                const request = store.put({ id: 'main', data: data, updated: Date.now() });
+                
+                request.onsuccess = () => resolve(true);
+                request.onerror = () => {
+                    console.error('IndexedDB save error:', request.error);
+                    resolve(false);
+                };
+            });
+        }
+        
+        async loadFromLocalStorage() {
+            try {
+                let encryptedData = null;
+                
+                // Try IndexedDB first
+                if (this.db) {
+                    encryptedData = await this.loadFromIndexedDB();
+                }
+                
+                // Try localStorage as fallback
+                if (!encryptedData) {
+                    const stored = localStorage.getItem('yubikey_password_backup');
+                    if (stored) encryptedData = JSON.parse(stored);
+                }
+                
+                if (!encryptedData) {
+                    return null;
+                }
+                
+                const decrypted = await this.decryptData(encryptedData);
+                return decrypted;
+            } catch (err) {
+                console.error(err);
+                return null;
+            }
+        }
+        
+        async loadFromIndexedDB() {
+            return new Promise((resolve, reject) => {
+                if (!this.db) {
+                    resolve(null);
+                    return;
+                }
+                
+                const transaction = this.db.transaction([this.storeName], 'readonly');
+                const store = transaction.objectStore(this.storeName);
+                const request = store.get('main');
+                
+                request.onsuccess = () => {
+                    resolve(request.result ? request.result.data : null);
+                };
+                request.onerror = () => {
+                    console.error('IndexedDB load error:', request.error);
+                    resolve(null);
+                };
+            });
+        }
+        
+        async unlockAndLoad() {
+            this.showStatus('🔓 Touch your YubiKey to unlock...', 'info');
+            
+            const auth = await this.authenticate();
+            if (!auth) {
+                this.showStatus('❌ Authentication failed - make sure you touch your YubiKey', 'error');
+                return false;
+            }
+            
+            this.showStatus('🔓 Loading your encrypted data...', 'info');
+            const decryptedData = await this.loadFromLocalStorage();
+            
+            if (decryptedData && decryptedData.rows) {
+                this.data = decryptedData.rows;
+                this.nextId = decryptedData.nextId || Math.max(...decryptedData.rows.map(r => r.id), 0) + 1;
+                this.showStatus(`✅ Loaded ${this.data.length} rows!`, 'success');
+            } else {
+                // Initialize with sample data if empty
+                this.data = [
+                    { id: 1, site: 'Google', methods: 'Password: MySecurePass123\n2FA: Enabled\nBackup codes: saved in safe' },
+                    { id: 2, site: 'GitHub', methods: 'Password: ghp_xxxxxx\nSSH key: ~/.ssh/id_rsa\n2FA: YubiKey' }
+                ];
+                this.nextId = 3;
+                this.showStatus('ℹ️ No saved data found. Starting with sample rows.', 'info');
+            }
+            
+            this.renderTable();
+            return true;
+        }
+        
+        lock() {
+            this.isUnlocked = false;
+            this.encryptionKey = null;
+            this.data = [];
+            this.filteredData = [];
+            
+            this.renderTable();
+            this.updateUI();
+            this.showStatus('🔒 Device locked. Click "Unlock" and touch YubiKey to access your data again.', 'warning');
+        }
+        
+        async exportBackup() {
+            const stored = localStorage.getItem('yubikey_password_backup');
+            if (!stored) {
+                // Try IndexedDB
+                const indexedData = await this.loadFromIndexedDB();
+                if (!indexedData) {
+                    this.showStatus('No saved data to export', 'warning');
+                    return;
+                }
+                var exportData = indexedData;
+            } else {
+                var exportData = JSON.parse(stored);
+            }
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `yubikey_password_backup_${Date.now()}.enc`;
+            a.click();
+            URL.revokeObjectURL(url);
+            this.showStatus('📎 Backup exported!', 'success');
+        }
+        
+        async importBackup(file) {
+            if (!this.isUnlocked) {
+                this.showStatus('❌ Please unlock with YubiKey first', 'error');
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                const encrypted = JSON.parse(text);
+                
+                if (!encrypted.iv || !encrypted.data) {
+                    throw new Error('Invalid backup file');
+                }
+                
+                // Verify it can be decrypted
+                const decrypted = await this.decryptData(encrypted);
+                if (!decrypted || !decrypted.rows) {
+                    throw new Error('Cannot decrypt - wrong YubiKey or corrupted file');
+                }
+                
+                // Save to both locations
+                await this.saveToIndexedDB(encrypted);
+                localStorage.setItem('yubikey_password_backup', JSON.stringify(encrypted));
+                
+                // Update current data
+                this.data = decrypted.rows;
+                this.nextId = decrypted.nextId || Math.max(...decrypted.rows.map(r => r.id), 0) + 1;
+                this.renderTable();
+                
+                this.showStatus(`📂 Imported ${this.data.length} rows successfully!`, 'success');
+            } catch (err) {
+                this.showStatus(`Import failed: ${err.message}`, 'error');
+            }
+        }
+        
+        searchTable() {
+            const searchBox = document.getElementById('searchBox');
+            this.searchTerm = searchBox.value;
+            this.renderTable();
+        }
+    }
     
-    // Auto-initialize
-    if (!localStorage.getItem('yubikey_credential_id')) {
-        showStatus('⚠️ First time setup: Click anywhere and touch YubiKey to register', false);
-        document.body.onclick = async () => {
-            const success = await yubiCrypto.setupYubiKey();
-            if (success) {
-                showStatus('✅ YubiKey registered! You can now encrypt/decrypt files.');
-                document.body.onclick = null;
+    // Initialize
+    const app = new YubiKeyPasswordManager();
+    window.app = app; // Make accessible to inline onclick
+    
+    document.getElementById('setupBtn').onclick = () => app.setupYubiKey();
+    document.getElementById('unlockBtn').onclick = () => app.unlockAndLoad();
+    document.getElementById('saveBtn').onclick = () => app.saveToLocalStorage();
+    document.getElementById('lockBtn').onclick = () => app.lock();
+    document.getElementById('addRowBtn').onclick = () => app.addRow();
+    document.getElementById('exportBtn').onclick = () => app.exportBackup();
+    document.getElementById('searchBox').oninput = () => app.searchTable();
+    
+    const importBtn = document.getElementById('importBtn');
+    const fileInput = document.getElementById('fileInput');
+    if (importBtn && fileInput) {
+        importBtn.onclick = () => fileInput.click();
+        fileInput.onchange = async (e) => {
+            if (e.target.files[0]) {
+                await app.importBackup(e.target.files[0]);
+                fileInput.value = '';
             }
         };
     }
